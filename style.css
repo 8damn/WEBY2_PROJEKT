@@ -1,0 +1,22 @@
+/* css/style.css */
+/* Vlastní doplňující styly nad rámec Pico.css */
+
+.hidden { 
+    display: none; 
+}
+
+.error-message { 
+    color: var(--form-element-invalid-active-border-color, #d32f2f); 
+    font-weight: bold; 
+    padding: 1rem;
+    background-color: #ffebee;
+    border-radius: 4px;
+}
+
+.card { 
+    padding: 1rem; 
+    border: 1px solid var(--muted-border-color, #ccc); 
+    margin-bottom: 1rem; 
+    border-radius: 8px; 
+    background-color: var(--card-background-color);
+}
