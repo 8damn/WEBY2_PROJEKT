@@ -1,6 +1,6 @@
 // src/views.js
 import { appState } from './state.js';
-import { getAvailableItems, getUserReservations, isAdmin, getActiveLoans } from './selectors.js';
+import { getAvailableItems, getUserReservations, isAdmin, getActiveLoans, getAllUsers } from './selectors.js';
 import * as hnd from './handlers.js';
 
 function h(tag, props, ...children) {
@@ -63,17 +63,23 @@ function renderAdmin() {
         h('section', { class: 'card' }, 
             h('h4', null, '1. Nové rezervace (Ke schválení)'), 
             h('ul', null, ...appState.data.reservations.filter(r => r.status === 'PENDING').map(r => 
-                h('li', null, `Zákazník ${r.userId} chce předmět ${r.itemId} `, h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'))
+                h('li', null, `Zákazník ${r.userId} chce předmět ${r.itemId} `, 
+                    h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'),
+                    h('button', { class: 'secondary outline', style: 'padding: 2px 10px; margin-left: 5px;', onClick: () => hnd.onExpireReservation(r.id) }, 'Propadlo')
+                )
             ))
         ),
         
         h('section', { class: 'card' }, 
             h('h4', null, '2. K vydání zákazníkovi (Potvrzené)'), 
             h('ul', null, ...appState.data.reservations.filter(r => r.status === 'CONFIRMED').map(r => 
-                h('li', null, `Předmět ${r.itemId} pro ${r.userId} `, h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'))
+                h('li', null, `Předmět ${r.itemId} pro ${r.userId} `, 
+                    h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'),
+                    h('button', { class: 'secondary outline', style: 'padding: 2px 10px; margin-left: 5px;', onClick: () => hnd.onExpireReservation(r.id) }, 'Propadlo')
+                )
             ))
-        ),
-        
+        ),  
+
         h('section', { class: 'card' }, 
             h('h4', null, '3. Aktivní výpůjčky (K vrácení)'), 
             h('table', { role: 'grid' }, 
@@ -95,6 +101,25 @@ function renderAdmin() {
             h('h4', null, '4. Sklad a údržba'), 
             h('ul', null, ...appState.data.items.filter(i => i.status === 'IN_REPAIR').map(i => 
                 h('li', null, `Poškozeno: ${i.name} `, h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onFix(i.id) }, 'Opraveno (Vrátit do nabídky)'))
+            ))
+        ),
+
+        h('section', { class: 'card' }, 
+            h('h4', null, '5. Správa uživatelů (Bezpečnost)'), 
+            h('ul', null, ...getAllUsers(appState).map(u => 
+                h('li', { style: 'margin-bottom: 10px;' }, 
+                    `Uživatel: ${u.email} (Stav: ${u.status}) `,
+                    
+                    // Tlačítko na odblokování (zobrazí se jen pro SUSPENDED a BLOCKED)
+                    (u.status === 'SUSPENDED' || u.status === 'BLOCKED') 
+                        ? h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onManageUser(u.id, 'VERIFY') }, 'Odblokovat') 
+                        : null,
+                        
+                    // Tlačítko na zablokování (zobrazí se všem kromě už zablokovaných a admina)
+                    (u.status !== 'BLOCKED' && u.role !== 'ADMIN')
+                        ? h('button', { class: 'secondary', style: 'padding: 2px 10px; margin-left: 5px;', onClick: () => hnd.onManageUser(u.id, 'BLOCK') }, 'Zablokovat') 
+                        : null
+                )
             ))
         )
     );

@@ -14,3 +14,9 @@ export const onConfirmRes = (id) => dispatchAction({ type: "CONFIRM_RESERVATION"
 export const onFulfillRes = (res) => dispatchAction({ type: "FULFILL_RESERVATION", payload: res });
 export const onReturn = (loanId, isDamaged) => dispatchAction({ type: "RETURN_ITEM", payload: { loanId, isDamaged } });
 export const onFix = (id) => dispatchAction({ type: "MANAGE_ITEM", payload: { id, task: "FIX" } });
+
+// --- Expirace rezervace (Admin) ---
+export const onExpireReservation = (resId) => dispatchAction({ type: "EXPIRE_RESERVATION", payload: resId });
+
+// --- Správa uživatelů (Admin - Zablokování / Odblokování) ---
+export const onManageUser = (userId, transition) => dispatchAction({ type: "MANAGE_USER", payload: { userId, transition } });

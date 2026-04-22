@@ -82,7 +82,7 @@ export function transitionUserState(user, actionType) {
     const newUser = { ...user };
     switch(actionType) {
         // Ověření emailu nebo identity (REGISTERED → VERIFIED nebo SUSPENDED → VERIFIED po splacení dluhu)
-        case "VERIFY":          if (user.status === "REGISTERED" || user.status === "SUSPENDED") newUser.status = "VERIFIED"; break;
+        case "VERIFY":          if (user.status === "REGISTERED" || user.status === "SUSPENDED" || user.status === "BLOCKED") newUser.status = "VERIFIED"; break;
         case "SUSPEND":         if (user.status === "VERIFIED") newUser.status = "SUSPENDED"; break;
         // Trvalá blokace – z jakéhokoliv stavu (krádež, hrubé porušení pravidel)
         case "BLOCK":           newUser.status = "BLOCKED"; break;

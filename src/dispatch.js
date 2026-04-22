@@ -114,6 +114,31 @@ export function dispatchAction(action) {
             }
             break;
 
+        case "EXPIRE_RESERVATION": {
+            const exIdx = newState.data.reservations.findIndex(r => r.id === action.payload);
+            if (exIdx > -1) {
+                const res = newState.data.reservations[exIdx];
+                // 1. Změní stav rezervace na EXPIRED
+                newState.data.reservations[exIdx] = transitionReservationState(res, "EXPIRE");
+                
+                // 2. Uvolní předmět zpět zákazníkům (vrátí ho z RESERVED do AVAILABLE)
+                const itemIdx = newState.data.items.findIndex(i => i.id === res.itemId);
+                if (itemIdx > -1) {
+                    newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], "CANCEL_RESERVE");
+                }
+            }
+            break;
+        }
+
+        case "MANAGE_USER": {
+            const uIdx = newState.data.users.findIndex(u => u.id === action.payload.userId);
+            if (uIdx > -1) {
+                // Provede přechod (VERIFY nebo BLOCK) podle payloadu
+                newState.data.users[uIdx] = transitionUserState(newState.data.users[uIdx], action.payload.transition);
+            }
+            break;
+        }
+
         case "RETURN_ITEM":
             const lIdx = newState.data.loans.findIndex(l => l.id === action.payload.loanId);
             if (lIdx > -1) {
