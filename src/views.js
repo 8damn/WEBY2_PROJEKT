@@ -40,6 +40,12 @@ function renderCustomer() {
         h('div', { class: 'grid' }, ...items.map(i => 
             h('div', { class: 'card' }, 
                 h('strong', null, i.name), 
+                h('div', { style: 'margin-top:10px;' },
+                    h('label', { for: `from-${i.id}` }, 'Od'),
+                    h('input', { id: `from-${i.id}`, type: 'date' }),
+                    h('label', { for: `to-${i.id}` }, 'Do'),
+                    h('input', { id: `to-${i.id}`, type: 'date' })
+                ),
                 h('button', { class: 'outline', style: 'margin-top:10px;', onClick: () => hnd.onReserve(i.id) }, 'Rezervovat')
             )
         )),
@@ -47,9 +53,14 @@ function renderCustomer() {
         h('h4', null, 'Mé rezervace'), 
         h('ul', null, ...res.map(r => 
             h('li', { style: 'margin-bottom:10px;' }, 
-                `Předmět ID: ${r.itemId} (Stav: ${r.status}) `, 
+                `Předmět ID: ${r.itemId} (Stav: ${r.status}) | Termín: ${r.requestedFrom || '-'} až ${r.requestedTo || '-'} `, 
                 (r.status === 'PENDING' || r.status === 'CONFIRMED') 
-                    ? h('button', { class: 'secondary outline', style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Zrušit') 
+                    ? h('div', { style: 'margin-top:8px;' },
+                        h('input', { id: `edit-from-${r.id}`, type: 'date', value: r.requestedFrom || '' }),
+                        h('input', { id: `edit-to-${r.id}`, type: 'date', value: r.requestedTo || '', style: 'margin-left:6px;' }),
+                        h('button', { style: 'padding: 2px 10px; margin-left: 10px;', onClick: () => hnd.onChangeReservationTerm(r.id) }, 'Změnit termín'),
+                        h('button', { class: 'secondary outline', style: 'padding: 2px 10px; margin-left: 5px;', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Zrušit')
+                    )
                     : null
             )
         ))

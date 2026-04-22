@@ -1,27 +1,62 @@
 // src/state.js
+const APP_DATA_STORAGE_KEY = "tnpw2_app_data_v1";
+
+const defaultData = {
+    items: [
+        { id: "item-1", name: "Vrtačka Bosch", status: "AVAILABLE" },
+        // item-2 má aktivní výpůjčku (loan-1), musí být UNAVAILABLE
+        { id: "item-2", name: "Pila ocaska", status: "UNAVAILABLE" },
+        { id: "item-3", name: "Svářečka", status: "IN_REPAIR" }
+    ],
+    loans: [
+        { id: "loan-1", userId: "u123", itemId: "item-2", status: "ACTIVE", startDate: "2024-12-01", dueDate: "2024-12-31", returnDate: null, penaltyAmount: 0 }
+    ],
+    reservations: [],
+    users: [
+        { id: "u123", email: "zakaznik@test.cz", role: "CUSTOMER", status: "VERIFIED" },
+        { id: "u999", email: "admin@test.cz", role: "ADMIN", status: "VERIFIED" }
+    ]
+};
+
+function clone(data) {
+    return JSON.parse(JSON.stringify(data));
+}
+
+function loadPersistedData() {
+    try {
+        const raw = localStorage.getItem(APP_DATA_STORAGE_KEY);
+        if (!raw) return clone(defaultData);
+
+        const parsed = JSON.parse(raw);
+        const isValid = parsed
+            && Array.isArray(parsed.items)
+            && Array.isArray(parsed.loans)
+            && Array.isArray(parsed.reservations)
+            && Array.isArray(parsed.users);
+
+        return isValid ? parsed : clone(defaultData);
+    } catch {
+        return clone(defaultData);
+    }
+}
+
+function persistData(data) {
+    try {
+        localStorage.setItem(APP_DATA_STORAGE_KEY, JSON.stringify(data));
+    } catch {
+        // Pokud úložiště není dostupné, aplikace běží dál jen v paměti.
+    }
+}
+
 export let appState = {
     ui: { loading: false, error: null, currentRoute: "login" },
     auth: { currentUser: null, role: "GUEST" },
-    data: {
-        items: [
-            { id: "item-1", name: "Vrtačka Bosch", status: "AVAILABLE" },
-            // item-2 má aktivní výpůjčku (loan-1), musí být UNAVAILABLE
-            { id: "item-2", name: "Pila ocaska", status: "UNAVAILABLE" },
-            { id: "item-3", name: "Svářečka", status: "IN_REPAIR" }
-        ],
-        loans: [
-            { id: "loan-1", userId: "u123", itemId: "item-2", status: "ACTIVE", startDate: "2024-12-01", dueDate: "2024-12-31", returnDate: null, penaltyAmount: 0 }
-        ],
-        reservations: [],
-        users: [
-            { id: "u123", email: "zakaznik@test.cz", role: "CUSTOMER", status: "VERIFIED" },
-            { id: "u999", email: "admin@test.cz", role: "ADMIN", status: "VERIFIED" }
-        ]
-    }
+    data: loadPersistedData()
 };
 
 export function setState(newState) { 
-    appState = newState; 
+    appState = newState;
+    persistData(appState.data);
 }
 
 // --- STAVOVÉ AUTOMATY (Business Pravidla) ---
@@ -67,6 +102,8 @@ export function transitionReservationState(res, actionType) {
     switch(actionType) {
         case "CONFIRM":         if (res.status === "PENDING") newRes.status = "CONFIRMED"; break;
         case "FULFILL":         if (res.status === "CONFIRMED") newRes.status = "FULFILLED"; break;
+        // Úprava termínu vrací schválenou rezervaci zpět k posouzení
+        case "UPDATE_TERM":     if (res.status === "CONFIRMED") newRes.status = "PENDING"; break;
         // Zákazník upravil termín – potřeba nové kontroly kapacity (CONFIRMED → PENDING)
         case "REOPEN":          if (res.status === "CONFIRMED") newRes.status = "PENDING"; break;
         // Expirace – zákazník si věc včas nevyzvedl (CONFIRMED nebo PENDING → EXPIRED)

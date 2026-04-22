@@ -6,6 +6,22 @@ import { saveAuthToken, clearAuthToken } from './auth.js';
 const listeners = [];
 export function subscribe(fn) { listeners.push(fn); }
 
+function isReservationActive(reservation) {
+    return reservation.status !== "CANCELLED" && reservation.status !== "EXPIRED";
+}
+
+function hasDateOverlap(startA, endA, startB, endB) {
+    return startA < endB && endA > startB;
+}
+
+function hasReservationConflict(reservations, itemId, from, to, ignoreReservationId = null) {
+    return reservations
+        .filter(r => r.itemId === itemId)
+        .filter(r => isReservationActive(r))
+        .filter(r => r.id !== ignoreReservationId)
+        .some(r => r.requestedFrom && r.requestedTo && hasDateOverlap(from, to, r.requestedFrom, r.requestedTo));
+}
+
 export function dispatchAction(action) {
     let newState = JSON.parse(JSON.stringify(appState));
     newState.ui.error = null;
@@ -53,9 +69,21 @@ export function dispatchAction(action) {
                 newState.ui.error = "Účet pozastaven. Nelze provést rezervaci.";
                 break;
             }
+            if (!action.payload.from || !action.payload.to) {
+                newState.ui.error = "Vyplňte termín Od a Do.";
+                break;
+            }
+            if (action.payload.from >= action.payload.to) {
+                newState.ui.error = "Neplatný termín. Datum Od musí být dříve než Do.";
+                break;
+            }
+            if (hasReservationConflict(newState.data.reservations, action.payload.itemId, action.payload.from, action.payload.to)) {
+                newState.ui.error = "Předmět je v tomto termínu již rezervován.";
+                break;
+            }
             newState.ui.loading = true;
             fetchReserveItem(action.payload.itemId)
-                .then(() => dispatchAction({ type: "RESERVE_SUCCESS", payload: action.payload.itemId }))
+                .then(() => dispatchAction({ type: "RESERVE_SUCCESS", payload: action.payload }))
                 .catch(e => dispatchAction({ type: "RESERVE_ERROR", payload: e.message }));
             break;
 
@@ -67,17 +95,51 @@ export function dispatchAction(action) {
             
         case "RESERVE_SUCCESS":
             newState.ui.loading = false;
-            const itmIdx = newState.data.items.findIndex(i => i.id === action.payload);
-            newState.data.items[itmIdx] = transitionItemState(newState.data.items[itmIdx], "RESERVE");
+            const reservePayload = typeof action.payload === "string"
+                ? { itemId: action.payload, from: null, to: null }
+                : action.payload;
+            const itmIdx = newState.data.items.findIndex(i => i.id === reservePayload.itemId);
+            if (itmIdx > -1) newState.data.items[itmIdx] = transitionItemState(newState.data.items[itmIdx], "RESERVE");
             newState.data.reservations.push({ 
                 id: "res-" + Date.now(), 
-                itemId: action.payload, 
+                itemId: reservePayload.itemId, 
                 userId: newState.auth.currentUser.id, 
                 status: "PENDING",
-                requestedFrom: null,
-                requestedTo: null
+                requestedFrom: reservePayload.from,
+                requestedTo: reservePayload.to
             });
             break;
+
+        case "UPDATE_TERM_START": {
+            const reservationIdx = newState.data.reservations.findIndex(r => r.id === action.payload.resId);
+            if (reservationIdx === -1) break;
+
+            const reservation = newState.data.reservations[reservationIdx];
+            if (reservation.status !== "PENDING" && reservation.status !== "CONFIRMED") {
+                newState.ui.error = "Termín lze změnit jen u čekající nebo potvrzené rezervace.";
+                break;
+            }
+            if (!action.payload.newFrom || !action.payload.newTo) {
+                newState.ui.error = "Vyplňte termín Od a Do.";
+                break;
+            }
+            if (action.payload.newFrom >= action.payload.newTo) {
+                newState.ui.error = "Neplatný termín. Datum Od musí být dříve než Do.";
+                break;
+            }
+            if (hasReservationConflict(newState.data.reservations, reservation.itemId, action.payload.newFrom, action.payload.newTo, reservation.id)) {
+                newState.ui.error = "Předmět je v tomto termínu již rezervován.";
+                break;
+            }
+
+            const updatedReservation = {
+                ...reservation,
+                requestedFrom: action.payload.newFrom,
+                requestedTo: action.payload.newTo
+            };
+            newState.data.reservations[reservationIdx] = transitionReservationState(updatedReservation, "UPDATE_TERM");
+            break;
+        }
 
         case "CANCEL_RESERVATION":
             const resIdx = newState.data.reservations.findIndex(r => r.id === action.payload.resId);
