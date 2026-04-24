@@ -12,6 +12,8 @@ globalThis.sessionStorage = {
     removeItem(k) { delete this._store[k]; },
 };
 
+// autor: Martin Teply (IR01)
+// testovani prechodu vsech stavovych automatu a validace povolenych akci
 import { assert } from "./assert.js";
 
 const {

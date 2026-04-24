@@ -1,3 +1,5 @@
+// autor: Adam Diblik (IR04)
+// testovani logiky pro zpracovani a prechody url
 import { assert } from "./assert.js";
 import {
     parseUrl,

@@ -29,16 +29,14 @@
 <div id="output"></div>
 
 <script type="module">
-// -------------------------------------------------------
-// Assertion helper
-// -------------------------------------------------------
+// pomocna funkce pro assert
 function assert(condition, message) {
     const el = document.createElement("p");
     el.className = condition ? "pass" : "fail";
-    el.textContent = (condition ? "✅ PASS: " : "❌ FAIL: ") + message;
+    el.textContent = (condition ? "PASS: " : "FAIL: ") + message;
     document.getElementById("output").appendChild(el);
-    if (!condition) console.error("❌ FAIL:", message);
-    else            console.log("✅ PASS:",  message);
+    if (!condition) console.error("FAIL:", message);
+    else            console.log("PASS:",  message);
 }
 
 function section(title) {
@@ -47,21 +45,10 @@ function section(title) {
     document.getElementById("output").appendChild(h2);
 }
 
-// -------------------------------------------------------
-// Import modulů
-// -------------------------------------------------------
+// testovani renderu komponent
+// simulujeme ruzne stavy a divame se co komponenta vyrendruje
 
-// Mocking sessionStorage/localStorage NENÍ potřeba v prohlížeči – jsou dostupné nativně.
-
-// Importujeme jen funkce, které chceme testovat přímo
-// (renderApp neimportujeme – testujeme vizuálně přes tlačítka níže)
-
-// =====================================================================
-// Blok 1 – AuthenticationView (programatický test)
-// Ověřujeme strukturu a chování pohledu autentizace se stub handlers.
-// =====================================================================
-
-section("Blok 1 – AuthenticationView (nepřihlášený uživatel)");
+section("AuthenticationView (neprihlaseny uzivatel)");
 
 {
     // Inline implementace AuthenticationView pro izolovaný test
@@ -143,7 +130,7 @@ section("Blok 1 – AuthenticationView (nepřihlášený uživatel)");
     document.body.removeChild(view);
 }
 
-section("Blok 1 – AuthenticationView (přihlášený uživatel)");
+section("AuthenticationView (prihlaseny uzivatel)");
 
 {
     // Jednoduchá implementace pro přihlášeného uživatele
@@ -194,15 +181,12 @@ section("Blok 1 – AuthenticationView (přihlášený uživatel)");
     document.body.removeChild(view);
 }
 
-// =====================================================================
-// Blok 2 – Vizuální testy renderApp
-// Nastavíme appState a ověříme výstup renderApp vizuálně.
-// =====================================================================
+// testy pro celou stranku - ovladani tlacitky
 
-section("Blok 2 – Vizuální testy renderApp (přepínáme scénáře tlačítky)");
+section("Vizualni testy renderApp");
 
 const note = document.createElement("p");
-note.textContent = "Použijte tlačítka níže pro přepínání scénářů. Ověřte vizuálně.";
+note.textContent = "Prepinejte tlacitky dole a sledujte jak se meni ui.";
 document.getElementById("output").appendChild(note);
 
 // Wrapper pro vizuální render
@@ -289,7 +273,7 @@ const scenarios = [
     },
 ];
 
-// Načteme moduly aplikace (volitelné – pouze pokud test běží v kontextu aplikace)
+// nacitani dat ze sourcu
 try {
     const { appState, setState } = await import("../src/state.js");
     const { renderApp }          = await import("../src/views.js");
@@ -304,7 +288,7 @@ try {
             const area = document.getElementById("visual-render-area");
             while (area.firstChild) area.removeChild(area.firstChild);
             renderApp();
-            // Přesměrujeme výstup renderApp do vizuálního wrapperu
+            
             const appRoot = document.getElementById("app");
             if (appRoot) {
                 area.appendChild(appRoot.cloneNode(true));
@@ -313,20 +297,17 @@ try {
         controlsDiv.appendChild(btn);
     });
 
-    assert(true, "Vizuální testy: moduly načteny úspěšně");
+    assert(true, "Vizualni testy: uspesne spusteny");
 } catch (e) {
     const info = document.createElement("p");
     info.style.color = "#e65100";
-    info.textContent = "ℹ️ Vizuální testy vyžadují server (Live Server / Vite). Otevřete views.test.html přes HTTP.";
+    info.textContent = "Je nutne to pustit pres live server kvuli importum ze src.";
     document.getElementById("output").appendChild(info);
 }
 
-// =====================================================================
-// Blok 3 – NotificationComponent (programatický test)
-// Ověříme, že NotificationComponent vrátí správný DOM element.
-// =====================================================================
+// testovani notifikacni lišty
 
-section("Blok 3 – NotificationComponent");
+section("NotificationComponent test");
 
 {
     // Inline implementace (stejná jako v views.js)

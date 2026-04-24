@@ -1,3 +1,5 @@
+// autor: Jan Hofmann (IR05)
+// testovani funkci ktere vybiraji a prekladaji data z globalniho stavu pro UI
 import { assert } from "./assert.js";
 import {
     getAvailableItems,

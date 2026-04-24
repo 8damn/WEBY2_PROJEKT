@@ -1,3 +1,5 @@
+// autor: Adam Diblik (IR08)
+// testovani prihlasovani, registrace a prace s tokenem
 import { assert } from "./assert.js";
 import { createAuthApi } from "../src/asyncApi.js";
 
