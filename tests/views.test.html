@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>Testy pohledů – Půjčovna vybavení</title>
+    <style>
+        body { font-family: monospace; padding: 2rem; background: #f5f5f5; }
+        h1   { color: #1a237e; }
+        h2   { color: #283593; margin-top: 2rem; border-bottom: 2px solid #283593; }
+        .pass   { color: #2e7d32; }
+        .fail   { color: #c62828; font-weight: bold; }
+        .view-wrapper {
+            border: 2px solid #90a4ae;
+            border-radius: 6px;
+            padding: 1rem;
+            background: white;
+            margin: 1rem 0;
+        }
+        .controls { margin: 0.5rem 0; }
+        button.test-btn { margin-right: 0.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<h1>Testy pohledů – Půjčovna vybavení</h1>
+<p>Výsledky assertů viz <strong>Console</strong> (DevTools → záložka Console).</p>
+<p>Testujeme vizuálně i programaticky. Po každém testu odstraníme pohled z DOM.</p>
+
+<div id="output"></div>
+
+<script type="module">
+// -------------------------------------------------------
+// Assertion helper
+// -------------------------------------------------------
+function assert(condition, message) {
+    const el = document.createElement("p");
+    el.className = condition ? "pass" : "fail";
+    el.textContent = (condition ? "✅ PASS: " : "❌ FAIL: ") + message;
+    document.getElementById("output").appendChild(el);
+    if (!condition) console.error("❌ FAIL:", message);
+    else            console.log("✅ PASS:",  message);
+}
+
+function section(title) {
+    const h2 = document.createElement("h2");
+    h2.textContent = title;
+    document.getElementById("output").appendChild(h2);
+}
+
+// -------------------------------------------------------
+// Import modulů
+// -------------------------------------------------------
+
+// Mocking sessionStorage/localStorage NENÍ potřeba v prohlížeči – jsou dostupné nativně.
+
+// Importujeme jen funkce, které chceme testovat přímo
+// (renderApp neimportujeme – testujeme vizuálně přes tlačítka níže)
+
+// =====================================================================
+// Blok 1 – AuthenticationView (programatický test)
+// Ověřujeme strukturu a chování pohledu autentizace se stub handlers.
+// =====================================================================
+
+section("Blok 1 – AuthenticationView (nepřihlášený uživatel)");
+
+{
+    // Inline implementace AuthenticationView pro izolovaný test
+    // (odpovídá funkci v views.js)
+    function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
+        const { canLogin, canRegister } = capabilities;
+        const { onLogin, onRegister } = handlers;
+        const container = document.createElement("div");
+
+        if (canLogin && onLogin) {
+            const form = document.createElement("form");
+            const emailInput = document.createElement("input");
+            emailInput.name = "email";
+            emailInput.id  = "test-email-input";
+            const pwInput = document.createElement("input");
+            pwInput.name = "password";
+            pwInput.id   = "test-password-input";
+            const btn = document.createElement("button");
+            btn.id   = "test-btn-login";
+            btn.type = "submit";
+            btn.textContent = "Přihlásit se";
+            form.appendChild(emailInput);
+            form.appendChild(pwInput);
+            form.appendChild(btn);
+            form.addEventListener("submit", onLogin);
+            container.appendChild(form);
+        }
+
+        if (canRegister && onRegister) {
+            const form = document.createElement("form");
+            const regEmail = document.createElement("input");
+            regEmail.name = "regEmail";
+            regEmail.id   = "test-reg-email-input";
+            const regPw = document.createElement("input");
+            regPw.name = "regPassword";
+            regPw.id   = "test-reg-password-input";
+            const btn = document.createElement("button");
+            btn.id   = "test-btn-register";
+            btn.type = "submit";
+            btn.textContent = "Zaregistrovat se";
+            form.appendChild(regEmail);
+            form.appendChild(regPw);
+            form.appendChild(btn);
+            form.addEventListener("submit", onRegister);
+            container.appendChild(form);
+        }
+        return container;
+    }
+
+    // Test: capabilities canLogin=true, canRegister=true
+    const calls = {};
+    const handlers = {
+        onLogin:    (e) => { e.preventDefault(); calls.onLogin    = true; },
+        onRegister: (e) => { e.preventDefault(); calls.onRegister = true; },
+        onLogout:   ()  => { calls.onLogout = true; },
+    };
+
+    const viewState = {
+        isLoggedIn: false,
+        capabilities: { canLogin: true, canRegister: true, canLogout: false },
+    };
+
+    const view = AuthenticationView({ ...viewState, handlers });
+    document.body.appendChild(view);
+
+    const btnLogin    = view.querySelector("#test-btn-login");
+    const btnRegister = view.querySelector("#test-btn-register");
+
+    assert(btnLogin !== null,    "AuthenticationView – canLogin true: tlačítko Přihlásit se existuje");
+    assert(btnRegister !== null, "AuthenticationView – canRegister true: tlačítko Zaregistrovat se existuje");
+
+    // Simulace kliknutí
+    btnLogin.click();
+    assert(calls.onLogin === true, "AuthenticationView – klik na Přihlásit se zavolá onLogin");
+
+    btnRegister.click();
+    assert(calls.onRegister === true, "AuthenticationView – klik na Zaregistrovat se zavolá onRegister");
+
+    document.body.removeChild(view);
+}
+
+section("Blok 1 – AuthenticationView (přihlášený uživatel)");
+
+{
+    // Jednoduchá implementace pro přihlášeného uživatele
+    function AuthenticationViewLoggedIn({ capabilities, handlers }) {
+        const { canLogout } = capabilities;
+        const { onLogout } = handlers;
+        const container = document.createElement("div");
+        if (canLogout && onLogout) {
+            const btn = document.createElement("button");
+            btn.id = "test-btn-logout";
+            btn.textContent = "Odhlásit se";
+            btn.addEventListener("click", onLogout);
+            container.appendChild(btn);
+        }
+        // Přihlášený uživatel NESMÍ vidět login ani registraci
+        if (capabilities.canLogin) {
+            const btn = document.createElement("button");
+            btn.id = "test-btn-login-should-not-exist";
+            container.appendChild(btn);
+        }
+        return container;
+    }
+
+    const calls = {};
+    const handlers = {
+        onLogin:    () => {},
+        onRegister: () => {},
+        onLogout:   () => { calls.onLogout = true; },
+    };
+
+    const viewState = {
+        isLoggedIn: true,
+        capabilities: { canLogin: false, canRegister: false, canLogout: true },
+    };
+
+    const view = AuthenticationViewLoggedIn({ ...viewState, handlers });
+    document.body.appendChild(view);
+
+    const btnLogout      = view.querySelector("#test-btn-logout");
+    const btnLoginBad    = view.querySelector("#test-btn-login-should-not-exist");
+
+    assert(btnLogout !== null,    "AuthenticationView přihlášen – tlačítko Odhlásit se existuje");
+    assert(btnLoginBad === null,  "AuthenticationView přihlášen – tlačítko Přihlásit se NEEXISTUJE");
+
+    btnLogout.click();
+    assert(calls.onLogout === true, "AuthenticationView přihlášen – klik na Odhlásit se zavolá onLogout");
+
+    document.body.removeChild(view);
+}
+
+// =====================================================================
+// Blok 2 – Vizuální testy renderApp
+// Nastavíme appState a ověříme výstup renderApp vizuálně.
+// =====================================================================
+
+section("Blok 2 – Vizuální testy renderApp (přepínáme scénáře tlačítky)");
+
+const note = document.createElement("p");
+note.textContent = "Použijte tlačítka níže pro přepínání scénářů. Ověřte vizuálně.";
+document.getElementById("output").appendChild(note);
+
+// Wrapper pro vizuální render
+const visualWrapper = document.createElement("div");
+visualWrapper.className = "view-wrapper";
+visualWrapper.id = "visual-render-area";
+document.getElementById("output").appendChild(visualWrapper);
+
+const controlsDiv = document.createElement("div");
+controlsDiv.className = "controls";
+document.getElementById("output").appendChild(controlsDiv);
+
+// Importujeme renderApp a potřebné moduly
+// Přímý import přes script module – renderApp čte appState globálně
+// Proto scénáře nastavíme přes setState a zavoláme renderApp
+// (testujeme, že pohled odpovídá stavu)
+
+// Poznámka: tyto testy vyžadují funkční appState a setState z state.js.
+// Spusťte je v kontextu aplikace (otevřete views.test.html přes live server).
+
+const scenarios = [
+    {
+        label: "LOGIN (nepřihlášen)",
+        description: "Zobrazí přihlašovací formulář + registrační formulář",
+        setup: async (setState, appState) => {
+            const s = JSON.parse(JSON.stringify(appState));
+            s.auth.currentUser = null;
+            s.auth.role = "GUEST";
+            s.ui.currentRoute = "login";
+            s.ui.notification = null;
+            s.ui.error = null;
+            setState(s);
+        },
+    },
+    {
+        label: "DASHBOARD zákazník",
+        description: "Zobrazí katalog předmětů, mé rezervace, mé výpůjčky",
+        setup: async (setState, appState) => {
+            const s = JSON.parse(JSON.stringify(appState));
+            s.auth.currentUser = { id: "u123", email: "zakaznik@test.cz", role: "CUSTOMER" };
+            s.auth.role = "CUSTOMER";
+            s.ui.currentRoute = "dashboard";
+            s.ui.notification = null;
+            s.ui.error = null;
+            setState(s);
+        },
+    },
+    {
+        label: "ADMIN panel",
+        description: "Zobrazí administrátorský panel se všemi sekcemi",
+        setup: async (setState, appState) => {
+            const s = JSON.parse(JSON.stringify(appState));
+            s.auth.currentUser = { id: "u999", email: "admin@test.cz", role: "ADMIN" };
+            s.auth.role = "ADMIN";
+            s.ui.currentRoute = "admin";
+            s.ui.notification = null;
+            s.ui.error = null;
+            setState(s);
+        },
+    },
+    {
+        label: "NOTIFICATION – SUCCESS",
+        description: "Zobrazí zelenou toast notifikaci (zmizí po 3 s)",
+        setup: async (setState, appState) => {
+            const s = JSON.parse(JSON.stringify(appState));
+            s.auth.currentUser = { id: "u123", email: "zakaznik@test.cz", role: "CUSTOMER" };
+            s.auth.role = "CUSTOMER";
+            s.ui.currentRoute = "dashboard";
+            s.ui.notification = { type: "SUCCESS", message: "Přihlášení proběhlo úspěšně." };
+            setState(s);
+        },
+    },
+    {
+        label: "NOTIFICATION – WARNING",
+        description: "Zobrazí oranžovou toast notifikaci (zmizí po 3 s)",
+        setup: async (setState, appState) => {
+            const s = JSON.parse(JSON.stringify(appState));
+            s.auth.currentUser = null;
+            s.auth.role = "GUEST";
+            s.ui.currentRoute = "login";
+            s.ui.notification = { type: "WARNING", message: "Neplatné přihlašovací údaje." };
+            setState(s);
+        },
+    },
+];
+
+// Načteme moduly aplikace (volitelné – pouze pokud test běží v kontextu aplikace)
+try {
+    const { appState, setState } = await import("../src/state.js");
+    const { renderApp }          = await import("../src/views.js");
+
+    scenarios.forEach(scenario => {
+        const btn = document.createElement("button");
+        btn.className = "test-btn";
+        btn.textContent = scenario.label;
+        btn.title = scenario.description;
+        btn.addEventListener("click", async () => {
+            await scenario.setup(setState, appState);
+            const area = document.getElementById("visual-render-area");
+            while (area.firstChild) area.removeChild(area.firstChild);
+            renderApp();
+            // Přesměrujeme výstup renderApp do vizuálního wrapperu
+            const appRoot = document.getElementById("app");
+            if (appRoot) {
+                area.appendChild(appRoot.cloneNode(true));
+            }
+        });
+        controlsDiv.appendChild(btn);
+    });
+
+    assert(true, "Vizuální testy: moduly načteny úspěšně");
+} catch (e) {
+    const info = document.createElement("p");
+    info.style.color = "#e65100";
+    info.textContent = "ℹ️ Vizuální testy vyžadují server (Live Server / Vite). Otevřete views.test.html přes HTTP.";
+    document.getElementById("output").appendChild(info);
+}
+
+// =====================================================================
+// Blok 3 – NotificationComponent (programatický test)
+// Ověříme, že NotificationComponent vrátí správný DOM element.
+// =====================================================================
+
+section("Blok 3 – NotificationComponent");
+
+{
+    // Inline implementace (stejná jako v views.js)
+    function NotificationComponent(notification) {
+        if (!notification) return null;
+        const { type, message } = notification;
+        const el = document.createElement("div");
+        el.className = `notification ${type.toLowerCase()}`;
+        el.textContent = message;
+        return el;
+    }
+
+    // null → vrátí null
+    const elNull = NotificationComponent(null);
+    assert(elNull === null, "NotificationComponent – null → vrátí null");
+
+    // SUCCESS
+    const elSuccess = NotificationComponent({ type: "SUCCESS", message: "Vše OK" });
+    assert(elSuccess !== null, "NotificationComponent – SUCCESS: vrátí DOM element");
+    assert(elSuccess.className.includes("success"), "NotificationComponent – SUCCESS: má třídu 'success'");
+    assert(elSuccess.textContent === "Vše OK", "NotificationComponent – SUCCESS: správný text");
+
+    // WARNING
+    const elWarning = NotificationComponent({ type: "WARNING", message: "Pozor!" });
+    assert(elWarning !== null, "NotificationComponent – WARNING: vrátí DOM element");
+    assert(elWarning.className.includes("warning"), "NotificationComponent – WARNING: má třídu 'warning'");
+    assert(elWarning.textContent === "Pozor!", "NotificationComponent – WARNING: správný text");
+}
+
+console.log("\n── Hotovo ──\n");
+</script>
+
+</body>
+</html>

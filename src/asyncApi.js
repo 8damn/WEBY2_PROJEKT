@@ -72,6 +72,7 @@ export function createAuthApi(db) {
             }
 
             const token = generateToken(user.id);
+            user.token = token;
 
             return { status: "SUCCESS", role: user.role, userId: user.id, token };
         },
@@ -87,6 +88,8 @@ export function createAuthApi(db) {
             if (!user) {
                 return { status: "REJECTED", reason: "Neplatný token." };
             }
+            
+            user.token = null;
 
             return { status: "SUCCESS", userId: user.id };
         },
