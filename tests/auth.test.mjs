@@ -13,7 +13,7 @@ console.log("\n── register ──");
     assert(db.users.length === 1, "register – uživatel je přidán do db");
     assert(db.users[0].email === "novak@test.cz", "register – email je správně uložen");
     assert(db.users[0].role === "CUSTOMER", "register – role je CUSTOMER");
-    assert(db.users[0].status === "VERIFIED", "register – status je VERIFIED");
+    assert(db.users[0].status === "REGISTERED", "register – status je REGISTERED (čeká na schválení)");
     assert(db.users[0].token === null, "register – token je null po registraci");
     assert(typeof db.users[0].hashedPassword === "string", "register – heslo je uloženo jako hash");
     assert(db.users[0].hashedPassword !== "heslo123", "register – heslo není uloženo v čitelné podobě");
@@ -64,6 +64,7 @@ console.log("\n── login ──");
 {
     const db = { users: [] };
     await createAuthApi(db).register({ email: "novak@test.cz", password: "heslo123" });
+    db.users[0].status = "VERIFIED";
 
     const result = await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
     assert(result.status === "SUCCESS", "login – úspěšné přihlášení");
@@ -132,6 +133,7 @@ console.log("\n── login ──");
 {
     const db = { users: [] };
     await createAuthApi(db).register({ email: "novak@test.cz", password: "heslo123" });
+    db.users[0].status = "VERIFIED";
 
     const r1 = await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
     const r2 = await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
@@ -147,6 +149,7 @@ console.log("\n── logout ──");
 {
     const db = { users: [] };
     await createAuthApi(db).register({ email: "novak@test.cz", password: "heslo123" });
+    db.users[0].status = "VERIFIED";
     const loginResult = await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
 
     const result = await createAuthApi(db).logout(loginResult.token);
@@ -162,6 +165,7 @@ console.log("\n── logout ──");
 {
     const db = { users: [] };
     await createAuthApi(db).register({ email: "novak@test.cz", password: "heslo123" });
+    db.users[0].status = "VERIFIED";
     await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
 
     const result = await createAuthApi(db).logout("spatny-token-xyz");
@@ -171,6 +175,7 @@ console.log("\n── logout ──");
 {
     const db = { users: [] };
     await createAuthApi(db).register({ email: "novak@test.cz", password: "heslo123" });
+    db.users[0].status = "VERIFIED";
     const loginResult = await createAuthApi(db).login({ email: "novak@test.cz", password: "heslo123" });
     const token = loginResult.token;
 
