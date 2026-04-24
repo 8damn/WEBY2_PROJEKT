@@ -1,11 +1,5 @@
-// src/asyncApi.js
-// Odpovědnost: Jan Hofmann (IR03 – Asynchronní operace a side-effects)
-//
-// Simuluje API volání na backend pomocí Promise + setTimeout.
-// Autentizační část (createAuthApi) vychází z referenčního projektu
-// učitelky (Mgr. Daniela Ponce, Ph.D., 2026) a používá stejný vzor
-// tovární funkce a SUCCESS/REJECTED odpovědí.
-
+// autor: Jan Hofmann (IR03)
+// asynchronni volani, simulace api
 import { hashPassword, generateToken } from './auth.js';
 
 function delay(ms = 400) {
@@ -17,18 +11,10 @@ async function isPasswordCorrect(user, password) {
     return hashed === user.hashedPassword;
 }
 
-// -------------------------------------------------------
-// createAuthApi – tovární funkce autentizačního API
-// -------------------------------------------------------
-// Přijímá db = { users: [] } – odkaz na data aplikace.
-// Vrací objekt s metodami register, login, logout.
-// Každá metoda vrací { status: "SUCCESS" | "REJECTED", ... }.
-//
-// Inspirováno authApi.js z referenčního projektu učitelky.
+
 export function createAuthApi(db) {
     return {
-        // Registrace nového zákazníka.
-        // Ověří unikátnost emailu, zahashuje heslo, uloží uživatele.
+
         async register(payload) {
             await delay();
 
@@ -62,12 +48,6 @@ export function createAuthApi(db) {
             return { status: "SUCCESS" };
         },
 
-        // Přihlášení uživatele.
-        // Ověří existenci účtu a správnost hesla.
-        // Při úspěchu vygeneruje token a vrátí role + userId + token.
-        //
-        // Chybová zpráva je záměrně stejná pro neexistující účet i špatné heslo –
-        // útočník by jinak mohl zjistit, zda e-mail v systému existuje.
         async login(payload) {
             await delay();
 
@@ -96,8 +76,6 @@ export function createAuthApi(db) {
             return { status: "SUCCESS", role: user.role, userId: user.id, token };
         },
 
-        // Odhlášení uživatele.
-        // Ověří platnost tokenu – token musí patřit existujícímu uživateli.
         async logout(token) {
             await delay(200);
 
@@ -115,11 +93,6 @@ export function createAuthApi(db) {
     };
 }
 
-// -------------------------------------------------------
-// Ostatní API (rezervace předmětů)
-// -------------------------------------------------------
-
-// Simulace požadavku na rezervaci předmětu.
 export function fetchReserveItem(itemId) {
     return new Promise(resolve => {
         setTimeout(() => resolve({ success: true, itemId }), 500);

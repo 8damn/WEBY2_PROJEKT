@@ -3,15 +3,12 @@ import { getActiveLoans } from '../src/selectors.js';
 
 export function testScenario_loanTransitions() {
     console.log("--- Test (Jan): Stavový automat Výpůjčky ---");
-    
-    // --- GIVEN ---
+
     const draftLoan = { id: "loan-99", status: "DRAFT_LOAN" };
 
-    // --- WHEN ---
     const activeLoan = transitionLoanState(draftLoan, "ACTIVATE");
     const returnedLoan = transitionLoanState(activeLoan, "RETURN_OK");
 
-    // --- THEN ---
     console.assert(
         activeLoan.status === "ACTIVE",
         "Chyba: DRAFT_LOAN by se měl po ACTIVATE změnit na ACTIVE"
@@ -25,8 +22,7 @@ export function testScenario_loanTransitions() {
 
 export function testScenario_activeLoansSelector() {
     console.log("--- Test (Jan): Selektor aktivních výpůjček ---");
-    
-    // --- GIVEN ---
+
     const mockState = {
         data: {
             loans: [
@@ -37,10 +33,8 @@ export function testScenario_activeLoansSelector() {
         }
     };
 
-    // --- WHEN ---
     const activeLoans = getActiveLoans(mockState);
 
-    // --- THEN ---
     console.assert(
         activeLoans.length === 2,
         "Chyba: Selektor by měl vrátit pouze 2 výpůjčky (ACTIVE a OVERDUE)"

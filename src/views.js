@@ -1,5 +1,5 @@
-// src/views.js
-// Odpovědnost: Max Jasinek (IR06 – Renderovací logika)
+// autor: Max Jasinek (IR06)
+// vytvareni UI elementu pomoci createElement
 import { appState } from './state.js';
 import { dispatchAction } from './dispatch.js';
 import { getAvailableItems, getUserReservations, getUserLoans, isAdmin, getActiveLoans, getAllUsers } from './selectors.js';
@@ -9,9 +9,7 @@ function today() {
     return new Date().toISOString().split("T")[0];
 }
 
-// -------------------------------------------------------
-// Pomocná funkce pro tvorbu DOM prvků (žádné innerHTML)
-// -------------------------------------------------------
+// pomocna fce abychom nemuseli vsude psat document.createElement (zakazano innerHTML)
 function h(tag, props, ...children) {
     const el = document.createElement(tag);
     if (props) {
@@ -30,13 +28,6 @@ function h(tag, props, ...children) {
     return el;
 }
 
-// -------------------------------------------------------
-// NotificationComponent
-// Inspirováno NotificationComponent.js z referenčního projektu
-// (Mgr. Daniela Ponce, Ph.D., 2026)
-// -------------------------------------------------------
-
-// Injektuje CSS styly pro toast notifikace (jednou při načtení modulu).
 (function injectNotificationStyles() {
     const style = document.createElement("style");
     style.textContent = `
@@ -64,8 +55,6 @@ function h(tag, props, ...children) {
     document.head.appendChild(style);
 })();
 
-// Vrátí DOM element notifikace nebo null.
-// Po skončení CSS animace (3 s) odešle CLEAR_NOTIFICATION a element se odstraní ze stavu.
 function NotificationComponent(notification) {
     if (!notification) return null;
 
@@ -78,12 +67,7 @@ function NotificationComponent(notification) {
     return el;
 }
 
-// -------------------------------------------------------
-// AuthenticationView
-// Inspirováno AuthenticationView.js z referenčního projektu učitelky.
-// Pohled dostane data z selektoru a handlers – nezná dispatch přímo.
-// -------------------------------------------------------
-
+// komponenta pro prihlaseni a registraci
 function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
     const { canLogin, canRegister, canLogout } = capabilities;
     const { onLogin, onRegister, onLogout } = handlers;
@@ -94,13 +78,11 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
     title.textContent = isLoggedIn ? "Přihlášen" : "Přihlášení / Registrace";
     container.appendChild(title);
 
-    // Loading indikátor viditelný i na přihlašovací stránce
     if (appState.ui.loading) {
         const loader = document.createElement("progress");
         container.appendChild(loader);
     }
 
-    // Chybová zpráva
     if (appState.ui.error) {
         const err = document.createElement("p");
         err.className = "error-message";
@@ -108,7 +90,6 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
         container.appendChild(err);
     }
 
-    // Odhlášení
     if (canLogout && onLogout) {
         const btn = document.createElement("button");
         btn.textContent = "Odhlásit se";
@@ -117,7 +98,6 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
         return container;
     }
 
-    // Přihlašovací formulář
     if (canLogin && onLogin) {
         const loginForm = document.createElement("form");
 
@@ -145,7 +125,6 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
         container.appendChild(loginForm);
     }
 
-    // Registrační formulář
     if (canRegister && onRegister) {
         const separator = document.createElement("hr");
         container.appendChild(separator);
@@ -183,7 +162,6 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
     return container;
 }
 
-// Selektor pohledu autentizace – vychází ze selectAuthenticationView učitelky.
 function selectAuthenticationView(state) {
     const isLoggedIn = state.auth.currentUser !== null;
     return {
@@ -196,10 +174,6 @@ function selectAuthenticationView(state) {
     };
 }
 
-// -------------------------------------------------------
-// Zákaznický pohled
-// -------------------------------------------------------
-// Lidsky čitelné popisky stavů předmětů
 const ITEM_STATUS_LABEL = {
     AVAILABLE: 'Dostupný',
     RESERVED: 'Rezervován (čeká na schválení)',
@@ -208,9 +182,10 @@ const ITEM_STATUS_LABEL = {
     RETIRED: 'Vyřazen',
 };
 
+// hlavni pohled pro zakaznika
 function renderCustomer() {
     const availableItems = getAvailableItems(appState);
-    // Nedostupné předměty – zákazník vidí proč katalog není plný
+
     const unavailableItems = appState.data.items.filter(i =>
         i.status === 'RESERVED' || i.status === 'UNAVAILABLE' || i.status === 'IN_REPAIR'
     );
@@ -230,8 +205,8 @@ function renderCustomer() {
             ? h('p', null, 'Momentálně žádný předmět k dispozici.')
             : h('div', { class: 'grid' }, ...availableItems.map(i =>
                 h('div', { class: 'card' },
-                    h('strong', null, i.name),
-                    h('small', { class: 'status-available' }, '✓ ' + (ITEM_STATUS_LABEL[i.status] || i.status)),
+                    h('strong', null, i.name + ' - '),
+                    h('small', { class: 'status-available' }, (ITEM_STATUS_LABEL[i.status] || i.status)),
                     h('div', { class: 'date-group' },
                         h('label', { for: 'from-' + i.id }, 'Od'),
                         h('input', { id: 'from-' + i.id, type: 'date', min: today() }),
@@ -247,8 +222,8 @@ function renderCustomer() {
                 h('h4', null, 'Momentálně nedostupné předměty'),
                 h('div', { class: 'grid' }, ...unavailableItems.map(i =>
                     h('div', { class: 'card disabled-card' },
-                        h('strong', null, i.name),
-                        h('small', { class: 'status-muted' }, '✗ ' + (ITEM_STATUS_LABEL[i.status] || i.status))
+                        h('strong', null, i.name + ' - '),
+                        h('small', { class: 'status-muted' }, (ITEM_STATUS_LABEL[i.status] || i.status))
                     )
                 ))
             )
@@ -288,10 +263,7 @@ function renderCustomer() {
     );
 }
 
-// -------------------------------------------------------
-// Administrátorský pohled
-// -------------------------------------------------------
-
+// pohled pro spravce systemu
 function renderAdmin() {
     const pendingUsers = appState.data.users.filter(u => u.status === 'REGISTERED');
 
@@ -384,7 +356,7 @@ function renderAdmin() {
                             i.status === 'IN_REPAIR'
                                 ? h('button', { class: 'btn-action', onClick: () => hnd.onFix(i.id) }, 'Opraveno')
                                 : null,
-                            // Vyřadit lze z AVAILABLE, RESERVED nebo IN_REPAIR – dle stavového automatu (* → RETIRED)
+
                             i.status !== 'UNAVAILABLE'
                                 ? h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onRetire(i.id) }, 'Vyřadit')
                                 : null
@@ -417,15 +389,14 @@ function renderAdmin() {
     );
 }
 
-// -------------------------------------------------------
-// Hlavní render funkce – odběratel store
-// -------------------------------------------------------
+// hlavni renderovaci funkce
 export function renderApp() {
+    // vzdycky smazeme cely stary obsah a vygenerujeme ho znova podle novych dat ze state
     const root = document.getElementById('app');
     while (root.firstChild) root.removeChild(root.firstChild);
 
     if (!appState.auth.currentUser) {
-        // Sestavíme viewState a handlers pro AuthenticationView (vzor učitelky)
+
         const viewState = selectAuthenticationView(appState);
         const handlers = { onLogin: hnd.onLogin, onRegister: hnd.onRegister, onLogout: hnd.onLogout };
         const authView = AuthenticationView({ ...viewState, handlers });
@@ -438,18 +409,17 @@ export function renderApp() {
             h('ul', null, h('li', null, h('strong', null, 'Přihlášen: ' + appState.auth.currentUser.email))),
             h('ul', null, h('li', null, h('button', { onClick: hnd.onLogout, class: 'secondary outline' }, 'Odhlásit')))
         );
-        // Chyba a loader jsou renderovány uvnitř každého pohledu zvlášť – zde je NEOPAKUJEME.
+
         root.appendChild(h('div', null,
             header,
             isAdmin(appState) ? renderAdmin() : renderCustomer()
         ));
     }
 
-    // Notifikace jako toast komponenta (vzor učitelky – cv11 Blok 4)
     const notificationEl = NotificationComponent(appState.ui.notification);
     if (notificationEl) {
         root.appendChild(notificationEl);
-        // Po skončení CSS animace smažeme notifikaci ze stavu
+
         notificationEl.addEventListener("animationend", () => {
             dispatchAction({ type: "CLEAR_NOTIFICATION" });
         });

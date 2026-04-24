@@ -1,4 +1,5 @@
-// src/dispatch.js
+// autor: Martin Teply (IR02)
+// centralni dispatcher, resi vsechny akce v systemu
 import { appState, setState, transitionItemState, transitionLoanState, transitionReservationState, transitionUserState } from './state.js';
 import { createAuthApi, fetchReserveItem } from './asyncApi.js';
 import { saveAuthToken, clearAuthToken, getAuthToken } from './auth.js';
@@ -6,11 +7,7 @@ import { saveAuthToken, clearAuthToken, getAuthToken } from './auth.js';
 const listeners = [];
 export function subscribe(fn) { listeners.push(fn); }
 
-// -------------------------------------------------------
-// Pomocné funkce pro rezervace
-// -------------------------------------------------------
-
-// Rezervace blokuje termín pouze pokud ještě nebyla vyřízena ani nevypršela.
+// rezervace co uz jsou vyrizene (fulfilled) nebo zrusene nebereme jako aktivni
 function isReservationActive(reservation) {
     return reservation.status !== "CANCELLED"
         && reservation.status !== "EXPIRED"
@@ -21,6 +18,7 @@ function hasDateOverlap(startA, endA, startB, endB) {
     return startA < endB && endA > startB;
 }
 
+// overi jestli vybrany datumovy usek nekoliduje s jinyma existujicima rezervacema
 function hasReservationConflict(reservations, itemId, from, to, ignoreReservationId = null) {
     return reservations
         .filter(r => r.itemId === itemId)
@@ -33,23 +31,17 @@ function today() {
     return new Date().toISOString().split("T")[0];
 }
 
-// -------------------------------------------------------
-// Dispatcher
-// -------------------------------------------------------
-
+// hlavni dispatch funkce
 export function dispatchAction(action) {
+    // hluboka kopie stavu abychom neprepisovali minuly stav (immutable approach)
     let newState = JSON.parse(JSON.stringify(appState));
     newState.ui.error = null;
 
     switch (action.type) {
 
-        // -------------------------------------------------------
-        // IR04: Navigační akce (Router → Dispatcher)
-        // Každá akce ověří oprávnění (route guard) a nastaví currentRoute.
-        // -------------------------------------------------------
-
+        // routovani (IR04)
         case "ENTER_LOGIN": {
-            // Přihlášený uživatel nemá co dělat na login stránce
+
             if (newState.auth.currentUser) {
                 newState.ui.currentRoute = newState.auth.role === "ADMIN" ? "admin" : "dashboard";
             } else {
@@ -59,11 +51,11 @@ export function dispatchAction(action) {
         }
 
         case "ENTER_DASHBOARD": {
-            // Nepřihlášený uživatel → zpět na login
+
             if (!newState.auth.currentUser) {
                 newState.ui.currentRoute = "login";
             } else if (newState.auth.role === "ADMIN") {
-                // Admin patří na admin panel, ne zákaznický dashboard
+
                 newState.ui.currentRoute = "admin";
             } else {
                 newState.ui.currentRoute = "dashboard";
@@ -75,7 +67,7 @@ export function dispatchAction(action) {
             if (!newState.auth.currentUser) {
                 newState.ui.currentRoute = "login";
             } else if (newState.auth.role !== "ADMIN") {
-                // Zákazník nemá přístup na admin panel
+
                 newState.ui.currentRoute = "dashboard";
             } else {
                 newState.ui.currentRoute = "admin";
@@ -83,14 +75,10 @@ export function dispatchAction(action) {
             break;
         }
 
-        // -------------------------------------------------------
-        // IR08: Autentizace (Adam Diblík)
-        // Vychází ze vzoru loginUser / registerUser / logoutUser z referenčního projektu.
-        // -------------------------------------------------------
-
+        // prihlasovani (IR08)
         case "LOGIN_START": {
             newState.ui.loading = true;
-            // createAuthApi dostane snapshot uživatelů z aktuálního stavu
+
             const authApi = createAuthApi({ users: newState.data.users });
             authApi.login({ email: action.payload.email, password: action.payload.password })
                 .then(result => dispatchAction({ type: "LOGIN_RESULT", payload: result }))
@@ -103,7 +91,7 @@ export function dispatchAction(action) {
             const { status, reason, role, userId, token } = action.payload;
 
             if (status === "SUCCESS") {
-                // Uložíme token k uživateli v datech (pro obnovu session po F5)
+
                 const uIdx = newState.data.users.findIndex(u => u.id === userId);
                 if (uIdx > -1) {
                     newState.data.users[uIdx].token = token;
@@ -127,9 +115,7 @@ export function dispatchAction(action) {
 
         case "REGISTER_START": {
             newState.ui.loading = true;
-            // db.users je reference na newState.data.users.
-            // authApi.register přidá nového uživatele přímo do tohoto pole.
-            // Po setState(newState) bude nový uživatel součástí appState.data.users.
+
             const authApi = createAuthApi({ users: newState.data.users });
             authApi.register({ email: action.payload.email, password: action.payload.password })
                 .then(result => dispatchAction({ type: "REGISTER_RESULT", payload: result }))
@@ -142,8 +128,7 @@ export function dispatchAction(action) {
             const { status, reason } = action.payload;
 
             if (status === "SUCCESS") {
-                // Nový uživatel je již v appState.data.users (přidán přes db.users reference
-                // v createAuthApi.register) – stačí nastavit notifikaci a přepnout na login.
+
                 newState.ui.notification = {
                     type: "SUCCESS",
                     message: "Registrace proběhla úspěšně. Nyní se přihlaste.",
@@ -166,7 +151,6 @@ export function dispatchAction(action) {
             const authApi = createAuthApi({ users: newState.data.users });
             authApi.logout(token);
 
-            // Odhlásíme okamžitě na UI straně bez čekání na odpověď API
             newState.auth.currentUser = null;
             newState.auth.role = "GUEST";
             clearAuthToken();
@@ -175,16 +159,12 @@ export function dispatchAction(action) {
             break;
         }
 
-        // Smazání notifikace po skončení CSS animace (animationend listener v renderApp)
         case "CLEAR_NOTIFICATION": {
             newState.ui.notification = null;
             break;
         }
 
-        // -------------------------------------------------------
-        // Rezervace (Odpovědnost: Adam Diblík)
-        // -------------------------------------------------------
-
+        // rezervace (Adam Diblik)
         case "RESERVE_START": {
             const reservingUserData = newState.data.users.find(u => u.id === newState.auth.currentUser.id);
             if (reservingUserData?.status === "SUSPENDED") {
@@ -282,7 +262,7 @@ export function dispatchAction(action) {
                 newState.data.reservations[rfIdx] = transitionReservationState(res, "FULFILL");
                 const itIdx = newState.data.items.findIndex(i => i.id === res.itemId);
                 if (itIdx > -1) newState.data.items[itIdx] = transitionItemState(newState.data.items[itIdx], "FULFILL");
-                // DRAFT_LOAN je záměrně vynechán – vydání probíhá okamžitě na pobočce.
+
                 newState.data.loans.push({
                     id: "loan-" + Date.now(),
                     userId: res.userId,
@@ -314,6 +294,7 @@ export function dispatchAction(action) {
             break;
         }
 
+        // vypujcky (Jan Hofmann)
         case "RETURN_ITEM": {
             const lIdx = newState.data.loans.findIndex(l => l.id === action.payload.loanId);
             if (lIdx > -1) {
@@ -343,10 +324,8 @@ export function dispatchAction(action) {
             break;
         }
 
-        // Systémová kontrola při startu aplikace (náhrada za backend scheduler).
-        // ACTIVE výpůjčky po termínu → OVERDUE
-        // CONFIRMED/PENDING rezervace po termínu → EXPIRED + předmět AVAILABLE
         case "SYSTEM_CHECK": {
+            // simuluje praci serveru/cronu ktery by bezne prochazel expirace na backendu
             const nowDate = today();
             newState.data.loans.forEach((loan, i) => {
                 if (loan.status === "ACTIVE" && loan.dueDate && loan.dueDate < nowDate) {

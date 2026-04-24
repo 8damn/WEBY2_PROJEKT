@@ -1,5 +1,7 @@
-// src/state.js
-// Verze datového schématu: v2 (přidáno hashedPassword, token na uživatelích)
+
+
+// autor: Martin Teply (IR01)
+// centralni data a stavove automaty
 const APP_DATA_STORAGE_KEY = "tnpw2_app_data_v2";
 
 const defaultData = {
@@ -9,12 +11,11 @@ const defaultData = {
         { id: "item-3", name: "Svářečka",      status: "IN_REPAIR" }
     ],
     loans: [
-        // item-2 má aktivní výpůjčku – dueDate je záměrně v minulosti pro SYSTEM_CHECK demonstraci
-        { id: "loan-1", userId: "u123", itemId: "item-2", status: "ACTIVE", startDate: "2024-12-01", dueDate: "2024-12-31", returnDate: null, penaltyAmount: 0 }
+
+        { id: "loan-1", userId: "u123", itemId: "item-2", status: "ACTIVE", startDate: "2026-04-01", dueDate: "2026-04-30", returnDate: null, penaltyAmount: 0 }
     ],
     reservations: [],
-    // hashedPassword se nastaví při startu aplikace v main.js (async SHA-256).
-    // Výchozí hesla: zakaznik@test.cz → "zakaznik123", admin@test.cz → "admin123"
+
     users: [
         { id: "u123", email: "zakaznik@test.cz", role: "CUSTOMER", status: "VERIFIED", hashedPassword: null, token: null },
         { id: "u999", email: "admin@test.cz",    role: "ADMIN",    status: "VERIFIED", hashedPassword: null, token: null }
@@ -25,6 +26,8 @@ function clone(data) {
     return JSON.parse(JSON.stringify(data));
 }
 
+// nacitani z localstorage
+// snazi se nacist ulozena data, a kdyz to neni validni json tak vrati default
 function loadPersistedData() {
     try {
         const raw = localStorage.getItem(APP_DATA_STORAGE_KEY);
@@ -47,7 +50,7 @@ function persistData(data) {
     try {
         localStorage.setItem(APP_DATA_STORAGE_KEY, JSON.stringify(data));
     } catch {
-        // Pokud úložiště není dostupné, aplikace běží dál jen v paměti.
+
     }
 }
 
@@ -57,11 +60,12 @@ export let appState = {
         loading: false,
         error: null,
         currentRoute: "login",
-        notification: null,     // { type: "SUCCESS" | "WARNING", message: string }
+        notification: null,     
     },
     data: loadPersistedData()
 };
 
+// hlavni funkce pro zmenu stavu
 export function setState(newState) {
     appState = newState;
     persistData(appState.data);
@@ -74,9 +78,7 @@ export function resetState() {
     }
 }
 
-// --- STAVOVÉ AUTOMATY (Business Pravidla) ---
-
-// Odpovědnost: Martin Teplý (IR01)
+// byznys logika pro prechody stavu (item)
 export function transitionItemState(item, actionType) {
     const newItem = { ...item };
     switch(actionType) {
@@ -93,7 +95,6 @@ export function transitionItemState(item, actionType) {
     return newItem;
 }
 
-// Odpovědnost: Jan Hofmann (IR01 – část Loan)
 export function transitionLoanState(loan, actionType) {
     const newLoan = { ...loan };
     switch(actionType) {
@@ -106,7 +107,6 @@ export function transitionLoanState(loan, actionType) {
     return newLoan;
 }
 
-// Odpovědnost: Adam Diblík (IR01 – část Reservation)
 export function transitionReservationState(res, actionType) {
     const newRes = { ...res };
     switch(actionType) {
@@ -119,7 +119,6 @@ export function transitionReservationState(res, actionType) {
     return newRes;
 }
 
-// Odpovědnost: Max Jasinek (IR01 – část UserAccount)
 export function transitionUserState(user, actionType) {
     const newUser = { ...user };
     switch(actionType) {

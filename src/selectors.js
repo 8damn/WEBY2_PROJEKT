@@ -1,5 +1,5 @@
-// src/selectors.js
-
+// autor: Jan Hofmann (IR05)
+// vybirani a filtrovani dat ze stavu pro UI
 export function getAvailableItems(state) {
     return state.data.items.filter(item => item.status === "AVAILABLE");
 }
@@ -9,8 +9,6 @@ export function getUserReservations(state) {
     return state.data.reservations.filter(res => res.userId === state.auth.currentUser.id);
 }
 
-// Výpůjčky aktuálního zákazníka, které ještě nebyly vráceny (zákazník je má fyzicky u sebe).
-// Slouží pro sekci "Mé výpůjčky" v pohledu zákazníka, kde může nahlásit ztrátu.
 export function getUserLoans(state) {
     if (!state.auth.currentUser) return [];
     return state.data.loans.filter(
@@ -18,9 +16,6 @@ export function getUserLoans(state) {
             && (loan.status === "ACTIVE" || loan.status === "OVERDUE")
     );
 }
-
-
-// --- SELEKTORY PRO ADMINISTRÁTORA ---
 
 export function isAdmin(state) {
     return state.auth.role === "ADMIN";

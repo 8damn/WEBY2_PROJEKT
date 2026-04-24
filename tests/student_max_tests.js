@@ -7,11 +7,10 @@ function clone(obj) {
 
 export function testScenario_suspendedUserCannotReserve() {
     console.log("--- Test (Max): Zablokování akce pro SUSPENDED uživatele ---");
-    
-    // --- GIVEN ---
+
     let state = clone(appState);
     state.auth.currentUser = { id: "u-bad", email: "zlobivy@test.cz" };
-    // Zákazník je SUSPENDED (např. kvůli pokutě)
+
     state.data.users = [{ id: "u-bad", status: "SUSPENDED" }];
     state.data.items = [{ id: "item-1", status: "AVAILABLE" }];
     
@@ -22,10 +21,8 @@ export function testScenario_suspendedUserCannotReserve() {
         payload: { itemId: "item-1" }
     };
 
-    // --- WHEN ---
     dispatchAction(action);
 
-    // --- THEN ---
     const finalState = appState;
     
     console.assert(
