@@ -241,7 +241,15 @@ function renderCustomer() {
                         ? h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onReportLoss(l.id) }, 'Nahlásit ztrátu / odcizení')
                         : null
                 )
-            ))
+            )),
+            
+        h('hr', null),
+        h('h4', null, 'Nastavení účtu'),
+        h('form', { onSubmit: hnd.onChangePassword, class: 'card' },
+            h('label', { for: 'newPassword' }, 'Nové heslo:'),
+            h('input', { type: 'password', id: 'newPassword', name: 'newPassword', required: true, minlength: '4' }),
+            h('button', { type: 'submit' }, 'Změnit heslo')
+        )
     );
 }
 
@@ -317,6 +325,13 @@ function renderAdmin() {
 
         h('section', { class: 'card' },
             h('h4', null, '4. Přehled skladu'),
+            h('form', { onSubmit: hnd.onCreateItem, style: 'margin-bottom: 1em;' },
+                h('label', { for: 'itemName' }, 'Přidat nový předmět:'),
+                h('div', { style: 'display: flex; gap: 0.5em;' },
+                    h('input', { type: 'text', id: 'itemName', name: 'itemName', required: true, placeholder: 'Název předmětu' }),
+                    h('button', { type: 'submit', class: 'btn-action' }, 'Přidat')
+                )
+            ),
             h('table', { role: 'grid' },
                 h('thead', null, h('tr', null,
                     h('th', null, 'Název'), h('th', null, 'Stav'), h('th', null, 'Akce')

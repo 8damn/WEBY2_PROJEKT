@@ -301,6 +301,35 @@ export function createApi(db) {
             return { status: "SUCCESS", data: { users: db.users } };
         },
 
+        // admin vytvoreni noveho predmetu
+        async createItem({ token, name }) {
+            await delay(200);
+            const user = authenticateToken(db, token);
+            if (!user || user.role !== "ADMIN") return { status: "REJECTED", reason: "Nedostatečná oprávnění." };
+            if (!name || name.trim() === "") return { status: "REJECTED", reason: "Název předmětu nesmí být prázdný." };
+
+            const newItem = {
+                id: "item-" + Date.now(),
+                name: name.trim(),
+                status: "AVAILABLE",
+            };
+            db.items.push(newItem);
+            return { status: "SUCCESS", data: { items: db.items } };
+        },
+
+        // zakaznik zmena hesla
+        async changePassword({ token, newPassword }) {
+            await delay(200);
+            const user = authenticateToken(db, token);
+            if (!user) return { status: "REJECTED", reason: "Nepřihlášen." };
+            if (!newPassword || newPassword.length < 4) {
+                return { status: "REJECTED", reason: "Nové heslo musí mít alespoň 4 znaky." };
+            }
+
+            user.hashedPassword = await hashPassword(newPassword);
+            return { status: "SUCCESS" };
+        },
+
         // systemova kontrola (nahradi cron na backendu)
         systemCheck() {
             const nowDate = today();

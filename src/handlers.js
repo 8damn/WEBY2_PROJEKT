@@ -46,6 +46,13 @@ export const onChangeReservationTerm = (resId) => {
 export const onReportLoss = (loanId) =>
     dispatchAction({ type: "REPORT_LOSS", payload: { loanId } });
 
+export const onChangePassword = (e) => {
+    e.preventDefault();
+    const newPassword = e.target.elements.newPassword.value;
+    dispatchAction({ type: "CHANGE_PASSWORD", payload: { newPassword } });
+    e.target.reset();
+};
+
 // akce pro admina
 export const onConfirmRes = (id) => dispatchAction({ type: "CONFIRM_RESERVATION", payload: id });
 export const onFulfillRes = (res) => dispatchAction({ type: "FULFILL_RESERVATION", payload: res });
@@ -54,5 +61,12 @@ export const onFix = (id) => dispatchAction({ type: "MANAGE_ITEM", payload: { id
 export const onRetire = (id) => dispatchAction({ type: "MANAGE_ITEM", payload: { id, task: "RETIRE" } });
 export const onExpireReservation = (resId) => dispatchAction({ type: "EXPIRE_RESERVATION", payload: resId });
 export const onManageUser = (userId, transition) => dispatchAction({ type: "MANAGE_USER", payload: { userId, transition } });
+
+export const onCreateItem = (e) => {
+    e.preventDefault();
+    const name = e.target.elements.itemName.value;
+    dispatchAction({ type: "CREATE_ITEM", payload: { name } });
+    e.target.reset();
+};
 
 export const onResetApp = () => resetState();

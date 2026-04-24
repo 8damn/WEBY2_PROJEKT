@@ -19,6 +19,9 @@ import { manageItemAction } from './actions/manageItemAction.js';
 import { manageUserAction } from './actions/manageUserAction.js';
 import { systemCheckAction } from './actions/systemCheckAction.js';
 
+import { createItemAction } from './actions/createItemAction.js';
+import { changePasswordAction } from './actions/changePasswordAction.js';
+
 const listeners = [];
 export function subscribe(fn) { listeners.push(fn); }
 
@@ -39,7 +42,9 @@ const actionMap = {
     RETURN_ITEM: returnItemAction,
     REPORT_LOSS: reportLossAction,
     MANAGE_ITEM: manageItemAction,
+    CREATE_ITEM: createItemAction,
     MANAGE_USER: manageUserAction,
+    CHANGE_PASSWORD: changePasswordAction,
     SYSTEM_CHECK: systemCheckAction,
 };
 
