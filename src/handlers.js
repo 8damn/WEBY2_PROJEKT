@@ -12,22 +12,20 @@ export const onReserve = (itemId) => {
     dispatchAction({ type: "RESERVE_START", payload: { itemId, from, to } });
 };
 
-// --- NOVÉ HANDLERY ---
+// --- HANDLERY ZÁKAZNÍKA ---
 export const onCancelRes = (resId, itemId) => dispatchAction({ type: "CANCEL_RESERVATION", payload: { resId, itemId } });
+export const onChangeReservationTerm = (resId) => {
+    const from = document.getElementById(`edit-from-${resId}`)?.value ?? "";
+    const to = document.getElementById(`edit-to-${resId}`)?.value ?? "";
+    dispatchAction({ type: "UPDATE_TERM_START", payload: { resId, newFrom: from, newTo: to } });
+};
+// Zákazník nahlásí ztrátu nebo odcizení svého zapůjčeného předmětu.
+export const onReportLoss = (loanId) => dispatchAction({ type: "REPORT_LOSS", payload: { loanId } });
+
+// --- HANDLERY SPRÁVCE ---
 export const onConfirmRes = (id) => dispatchAction({ type: "CONFIRM_RESERVATION", payload: id });
 export const onFulfillRes = (res) => dispatchAction({ type: "FULFILL_RESERVATION", payload: res });
 export const onReturn = (loanId, isDamaged) => dispatchAction({ type: "RETURN_ITEM", payload: { loanId, isDamaged } });
 export const onFix = (id) => dispatchAction({ type: "MANAGE_ITEM", payload: { id, task: "FIX" } });
-
-// --- Úprava termínu rezervace (Customer) ---
-export const onChangeReservationTerm = (resId, newFrom, newTo) => {
-    const from = newFrom ?? document.getElementById(`edit-from-${resId}`)?.value ?? "";
-    const to = newTo ?? document.getElementById(`edit-to-${resId}`)?.value ?? "";
-    dispatchAction({ type: "UPDATE_TERM_START", payload: { resId, newFrom: from, newTo: to } });
-};
-
-// --- Expirace rezervace (Admin) ---
 export const onExpireReservation = (resId) => dispatchAction({ type: "EXPIRE_RESERVATION", payload: resId });
-
-// --- Správa uživatelů (Admin - Zablokování / Odblokování) ---
 export const onManageUser = (userId, transition) => dispatchAction({ type: "MANAGE_USER", payload: { userId, transition } });

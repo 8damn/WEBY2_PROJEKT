@@ -9,18 +9,27 @@ export function getUserReservations(state) {
     return state.data.reservations.filter(res => res.userId === state.auth.currentUser.id);
 }
 
+// Výpůjčky aktuálního zákazníka, které ještě nebyly vráceny (zákazník je má fyzicky u sebe).
+// Slouží pro sekci "Mé výpůjčky" v pohledu zákazníka, kde může nahlásit ztrátu.
+export function getUserLoans(state) {
+    if (!state.auth.currentUser) return [];
+    return state.data.loans.filter(
+        loan => loan.userId === state.auth.currentUser.id
+            && (loan.status === "ACTIVE" || loan.status === "OVERDUE")
+    );
+}
+
 export function isLoggedIn(state) {
     return state.auth.currentUser !== null;
 }
 
-// --- NOVÉ SELEKTORY PRO ADMINISTRÁTORA ---
+// --- SELEKTORY PRO ADMINISTRÁTORA ---
 
 export function isAdmin(state) {
     return state.auth.role === "ADMIN";
 }
 
 export function getActiveLoans(state) {
-    // Vrátíme všechny výpůjčky, které ještě nebyly vráceny
     return state.data.loans.filter(loan => loan.status === "ACTIVE" || loan.status === "OVERDUE");
 }
 

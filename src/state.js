@@ -102,10 +102,8 @@ export function transitionReservationState(res, actionType) {
     switch(actionType) {
         case "CONFIRM":         if (res.status === "PENDING") newRes.status = "CONFIRMED"; break;
         case "FULFILL":         if (res.status === "CONFIRMED") newRes.status = "FULFILLED"; break;
-        // Úprava termínu vrací schválenou rezervaci zpět k posouzení
+        // Úprava termínu – zákazník změnil termín, schválená rezervace se vrátí k posouzení
         case "UPDATE_TERM":     if (res.status === "CONFIRMED") newRes.status = "PENDING"; break;
-        // Zákazník upravil termín – potřeba nové kontroly kapacity (CONFIRMED → PENDING)
-        case "REOPEN":          if (res.status === "CONFIRMED") newRes.status = "PENDING"; break;
         // Expirace – zákazník si věc včas nevyzvedl (CONFIRMED nebo PENDING → EXPIRED)
         case "EXPIRE":          if (res.status === "CONFIRMED" || res.status === "PENDING") newRes.status = "EXPIRED"; break;
         // Zrušení – lze z PENDING i CONFIRMED
@@ -118,7 +116,7 @@ export function transitionReservationState(res, actionType) {
 export function transitionUserState(user, actionType) {
     const newUser = { ...user };
     switch(actionType) {
-        // Ověření emailu nebo identity (REGISTERED → VERIFIED nebo SUSPENDED → VERIFIED po splacení dluhu)
+        // Ověření emailu nebo identity; správce může rehabilitovat i trvale zablokovaný účet
         case "VERIFY":          if (user.status === "REGISTERED" || user.status === "SUSPENDED" || user.status === "BLOCKED") newUser.status = "VERIFIED"; break;
         case "SUSPEND":         if (user.status === "VERIFIED") newUser.status = "SUSPENDED"; break;
         // Trvalá blokace – z jakéhokoliv stavu (krádež, hrubé porušení pravidel)
