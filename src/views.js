@@ -89,7 +89,7 @@ function renderAdmin() {
             h('ul', null, ...appState.data.reservations.filter(r => r.status === 'PENDING').map(r => 
                 h('li', null, 'Zákazník ' + r.userId + ' chce předmět ' + r.itemId + ' | Termín: ' + (r.requestedFrom || '-') + ' až ' + (r.requestedTo || '-') + ' ', 
                     h('button', { class: 'btn-action', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'),
-                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onExpireReservation(r.id) }, 'Propadlo')
+                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
                 )
             ))
         ),
@@ -99,7 +99,7 @@ function renderAdmin() {
             h('ul', null, ...appState.data.reservations.filter(r => r.status === 'CONFIRMED').map(r => 
                 h('li', null, 'Předmět ' + r.itemId + ' pro ' + r.userId + ' | Vrátit do: ' + (r.requestedTo || '-') + ' ', 
                     h('button', { class: 'btn-action', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'),
-                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onExpireReservation(r.id) }, 'Propadlo')
+                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
                 )
             ))
         ),
