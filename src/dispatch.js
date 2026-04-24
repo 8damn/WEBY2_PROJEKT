@@ -1,13 +1,16 @@
 // src/dispatch.js
 import { appState, setState, transitionItemState, transitionLoanState, transitionReservationState, transitionUserState } from './state.js';
-import { fetchLogin, fetchReserveItem } from './asyncApi.js';
-import { saveAuthToken, clearAuthToken } from './auth.js';
+import { createAuthApi, fetchReserveItem } from './asyncApi.js';
+import { saveAuthToken, clearAuthToken, getAuthToken } from './auth.js';
 
 const listeners = [];
 export function subscribe(fn) { listeners.push(fn); }
 
-// Rezervace blokuje kalendář pouze pokud ještě nebyla vyřízena ani nevypršela.
-// FULFILLED je záměrně vyloučeno — vyzvednutá rezervace už předmět neblokuje.
+// -------------------------------------------------------
+// Pomocné funkce pro rezervace
+// -------------------------------------------------------
+
+// Rezervace blokuje termín pouze pokud ještě nebyla vyřízena ani nevypršela.
 function isReservationActive(reservation) {
     return reservation.status !== "CANCELLED"
         && reservation.status !== "EXPIRED"
@@ -30,48 +33,161 @@ function today() {
     return new Date().toISOString().split("T")[0];
 }
 
+// -------------------------------------------------------
+// Dispatcher
+// -------------------------------------------------------
+
 export function dispatchAction(action) {
     let newState = JSON.parse(JSON.stringify(appState));
     newState.ui.error = null;
 
     switch (action.type) {
-        case "NAVIGATE": 
-            newState.ui.currentRoute = action.payload; 
+
+        // -------------------------------------------------------
+        // IR04: Navigační akce (Router → Dispatcher)
+        // Každá akce ověří oprávnění (route guard) a nastaví currentRoute.
+        // -------------------------------------------------------
+
+        case "ENTER_LOGIN": {
+            // Přihlášený uživatel nemá co dělat na login stránce
+            if (newState.auth.currentUser) {
+                newState.ui.currentRoute = newState.auth.role === "ADMIN" ? "admin" : "dashboard";
+            } else {
+                newState.ui.currentRoute = "login";
+            }
             break;
-            
-        case "LOGIN_START":
+        }
+
+        case "ENTER_DASHBOARD": {
+            // Nepřihlášený uživatel → zpět na login
+            if (!newState.auth.currentUser) {
+                newState.ui.currentRoute = "login";
+            } else if (newState.auth.role === "ADMIN") {
+                // Admin patří na admin panel, ne zákaznický dashboard
+                newState.ui.currentRoute = "admin";
+            } else {
+                newState.ui.currentRoute = "dashboard";
+            }
+            break;
+        }
+
+        case "ENTER_ADMIN": {
+            if (!newState.auth.currentUser) {
+                newState.ui.currentRoute = "login";
+            } else if (newState.auth.role !== "ADMIN") {
+                // Zákazník nemá přístup na admin panel
+                newState.ui.currentRoute = "dashboard";
+            } else {
+                newState.ui.currentRoute = "admin";
+            }
+            break;
+        }
+
+        // -------------------------------------------------------
+        // IR08: Autentizace (Adam Diblík)
+        // Vychází ze vzoru loginUser / registerUser / logoutUser z referenčního projektu.
+        // -------------------------------------------------------
+
+        case "LOGIN_START": {
             newState.ui.loading = true;
-            fetchLogin(action.payload.email)
-                .then(u => dispatchAction({ type: "LOGIN_SUCCESS", payload: u }))
-                .catch(e => dispatchAction({ type: "LOGIN_ERROR", payload: e.message }));
+            // createAuthApi dostane snapshot uživatelů z aktuálního stavu
+            const authApi = createAuthApi({ users: newState.data.users });
+            authApi.login({ email: action.payload.email, password: action.payload.password })
+                .then(result => dispatchAction({ type: "LOGIN_RESULT", payload: result }))
+                .catch(e => dispatchAction({ type: "LOGIN_RESULT", payload: { status: "ERROR", reason: e.message } }));
             break;
-            
-        case "LOGIN_SUCCESS":
+        }
+
+        case "LOGIN_RESULT": {
             newState.ui.loading = false;
-            const dbUser = newState.data.users.find(u => u.id === action.payload.id);
-            if (dbUser?.status === "BLOCKED") { newState.ui.error = "Účet zablokován."; break; }
-            newState.auth.currentUser = dbUser || action.payload;
-            newState.auth.role = newState.auth.currentUser.role;
-            saveAuthToken(newState.auth.currentUser.id);
-            window.location.hash = "#dashboard";
+            const { status, reason, role, userId, token } = action.payload;
+
+            if (status === "SUCCESS") {
+                // Uložíme token k uživateli v datech (pro obnovu session po F5)
+                const uIdx = newState.data.users.findIndex(u => u.id === userId);
+                if (uIdx > -1) {
+                    newState.data.users[uIdx].token = token;
+                    newState.auth.currentUser = newState.data.users[uIdx];
+                }
+                newState.auth.role = role;
+                saveAuthToken(token);
+                newState.ui.notification = { type: "SUCCESS", message: "Přihlášení proběhlo úspěšně." };
+                newState.ui.currentRoute = role === "ADMIN" ? "admin" : "dashboard";
+            }
+
+            if (status === "REJECTED") {
+                newState.ui.notification = { type: "WARNING", message: reason };
+            }
+
+            if (status === "ERROR") {
+                newState.ui.notification = { type: "WARNING", message: reason };
+            }
             break;
-            
-        case "LOGIN_ERROR": 
-            newState.ui.loading = false; 
-            newState.ui.error = action.payload; 
+        }
+
+        case "REGISTER_START": {
+            newState.ui.loading = true;
+            // db.users je reference na newState.data.users.
+            // authApi.register přidá nového uživatele přímo do tohoto pole.
+            // Po setState(newState) bude nový uživatel součástí appState.data.users.
+            const authApi = createAuthApi({ users: newState.data.users });
+            authApi.register({ email: action.payload.email, password: action.payload.password })
+                .then(result => dispatchAction({ type: "REGISTER_RESULT", payload: result }))
+                .catch(e => dispatchAction({ type: "REGISTER_RESULT", payload: { status: "ERROR", reason: e.message } }));
             break;
-            
-        case "LOGOUT": 
+        }
+
+        case "REGISTER_RESULT": {
+            newState.ui.loading = false;
+            const { status, reason } = action.payload;
+
+            if (status === "SUCCESS") {
+                // Nový uživatel je již v appState.data.users (přidán přes db.users reference
+                // v createAuthApi.register) – stačí nastavit notifikaci a přepnout na login.
+                newState.ui.notification = {
+                    type: "SUCCESS",
+                    message: "Registrace proběhla úspěšně. Nyní se přihlaste.",
+                };
+                newState.ui.currentRoute = "login";
+            }
+
+            if (status === "REJECTED" || status === "ERROR") {
+                newState.ui.notification = { type: "WARNING", message: reason };
+            }
+            break;
+        }
+
+        case "LOGOUT": {
+            const token = getAuthToken();
+            const authApi = createAuthApi({ users: newState.data.users });
+            authApi.logout(token).then(result => {
+                if (result.status === "SUCCESS") {
+                    // Zrušíme token v datech uživatele
+                    const uIdx = newState.data.users.findIndex(u => u.id === result.userId);
+                    // (tento newState je stale – proto znovu dispatchujeme LOGOUT_SUCCESS)
+                }
+            });
+            // Odhlásíme okamžitě na UI straně bez čekání na odpověď API
             newState.auth.currentUser = null;
             newState.auth.role = "GUEST";
-            clearAuthToken(); 
-            window.location.hash = "#login"; 
+            clearAuthToken();
+            newState.ui.notification = { type: "SUCCESS", message: "Odhlášení proběhlo úspěšně." };
+            newState.ui.currentRoute = "login";
             break;
+        }
+
+        // Smazání notifikace po skončení CSS animace (animationend listener v renderApp)
+        case "CLEAR_NOTIFICATION": {
+            newState.ui.notification = null;
+            break;
+        }
+
+        // -------------------------------------------------------
+        // Rezervace (Odpovědnost: Adam Diblík)
+        // -------------------------------------------------------
 
         case "RESERVE_START": {
-            // Business pravidlo: SUSPENDED uživatel nesmí tvořit rezervace.
-            const reservingUserId = newState.auth.currentUser.id;
-            const reservingUserData = newState.data.users.find(u => u.id === reservingUserId);
+            const reservingUserData = newState.data.users.find(u => u.id === newState.auth.currentUser.id);
             if (reservingUserData?.status === "SUSPENDED") {
                 newState.ui.error = "Účet pozastaven. Nelze provést rezervaci.";
                 break;
@@ -80,7 +196,6 @@ export function dispatchAction(action) {
                 newState.ui.error = "Vyplňte termín Od a Do.";
                 break;
             }
-            // Validace: datum Od nesmí být v minulosti
             if (action.payload.from < today()) {
                 newState.ui.error = "Datum Od nesmí být v minulosti.";
                 break;
@@ -104,58 +219,44 @@ export function dispatchAction(action) {
             newState.ui.loading = false;
             newState.ui.error = action.payload;
             break;
-            
+
         case "RESERVE_SUCCESS": {
             newState.ui.loading = false;
-            const reservePayload = typeof action.payload === "string"
+            const p = typeof action.payload === "string"
                 ? { itemId: action.payload, from: null, to: null }
                 : action.payload;
-            const itmIdx = newState.data.items.findIndex(i => i.id === reservePayload.itemId);
+            const itmIdx = newState.data.items.findIndex(i => i.id === p.itemId);
             if (itmIdx > -1) newState.data.items[itmIdx] = transitionItemState(newState.data.items[itmIdx], "RESERVE");
-            newState.data.reservations.push({ 
-                id: "res-" + Date.now(), 
-                itemId: reservePayload.itemId, 
-                userId: newState.auth.currentUser.id, 
+            newState.data.reservations.push({
+                id: "res-" + Date.now(),
+                itemId: p.itemId,
+                userId: newState.auth.currentUser.id,
                 status: "PENDING",
-                requestedFrom: reservePayload.from,
-                requestedTo: reservePayload.to
+                requestedFrom: p.from,
+                requestedTo: p.to
             });
             break;
         }
 
         case "UPDATE_TERM_START": {
-            const reservationIdx = newState.data.reservations.findIndex(r => r.id === action.payload.resId);
-            if (reservationIdx === -1) break;
-
-            const reservation = newState.data.reservations[reservationIdx];
-            if (reservation.status !== "PENDING" && reservation.status !== "CONFIRMED") {
+            const resIdx = newState.data.reservations.findIndex(r => r.id === action.payload.resId);
+            if (resIdx === -1) break;
+            const res = newState.data.reservations[resIdx];
+            if (res.status !== "PENDING" && res.status !== "CONFIRMED") {
                 newState.ui.error = "Termín lze změnit jen u čekající nebo potvrzené rezervace.";
                 break;
             }
-            if (!action.payload.newFrom || !action.payload.newTo) {
-                newState.ui.error = "Vyplňte termín Od a Do.";
-                break;
-            }
-            // Validace: datum Od nesmí být v minulosti
-            if (action.payload.newFrom < today()) {
-                newState.ui.error = "Datum Od nesmí být v minulosti.";
-                break;
-            }
-            if (action.payload.newFrom >= action.payload.newTo) {
-                newState.ui.error = "Neplatný termín. Datum Od musí být dříve než Do.";
-                break;
-            }
-            if (hasReservationConflict(newState.data.reservations, reservation.itemId, action.payload.newFrom, action.payload.newTo, reservation.id)) {
+            if (!action.payload.newFrom || !action.payload.newTo) { newState.ui.error = "Vyplňte termín Od a Do."; break; }
+            if (action.payload.newFrom < today()) { newState.ui.error = "Datum Od nesmí být v minulosti."; break; }
+            if (action.payload.newFrom >= action.payload.newTo) { newState.ui.error = "Neplatný termín."; break; }
+            if (hasReservationConflict(newState.data.reservations, res.itemId, action.payload.newFrom, action.payload.newTo, res.id)) {
                 newState.ui.error = "Předmět je v tomto termínu již rezervován.";
                 break;
             }
-
-            const updatedReservation = {
-                ...reservation,
-                requestedFrom: action.payload.newFrom,
-                requestedTo: action.payload.newTo
-            };
-            newState.data.reservations[reservationIdx] = transitionReservationState(updatedReservation, "UPDATE_TERM");
+            newState.data.reservations[resIdx] = transitionReservationState(
+                { ...res, requestedFrom: action.payload.newFrom, requestedTo: action.payload.newTo },
+                "UPDATE_TERM"
+            );
             break;
         }
 
@@ -182,13 +283,11 @@ export function dispatchAction(action) {
                 newState.data.reservations[rfIdx] = transitionReservationState(res, "FULFILL");
                 const itIdx = newState.data.items.findIndex(i => i.id === res.itemId);
                 if (itIdx > -1) newState.data.items[itIdx] = transitionItemState(newState.data.items[itIdx], "FULFILL");
-                // dueDate se přebírá z termínu rezervace — zákazník si sám zvolil, do kdy věc vrátí.
-                // Poznámka: DRAFT_LOAN mezistav je záměrně vynechán — vydání na pobočce
-                // probíhá okamžitě, správce nemusí výpůjčku nejprve připravovat.
-                newState.data.loans.push({ 
-                    id: "loan-" + Date.now(), 
-                    userId: res.userId, 
-                    itemId: res.itemId, 
+                // DRAFT_LOAN je záměrně vynechán – vydání probíhá okamžitě na pobočce.
+                newState.data.loans.push({
+                    id: "loan-" + Date.now(),
+                    userId: res.userId,
+                    itemId: res.itemId,
                     status: "ACTIVE",
                     startDate: today(),
                     dueDate: res.requestedTo || null,
@@ -205,18 +304,14 @@ export function dispatchAction(action) {
                 const res = newState.data.reservations[exIdx];
                 newState.data.reservations[exIdx] = transitionReservationState(res, "EXPIRE");
                 const itemIdx = newState.data.items.findIndex(i => i.id === res.itemId);
-                if (itemIdx > -1) {
-                    newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], "CANCEL_RESERVE");
-                }
+                if (itemIdx > -1) newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], "CANCEL_RESERVE");
             }
             break;
         }
 
         case "MANAGE_USER": {
             const uIdx = newState.data.users.findIndex(u => u.id === action.payload.userId);
-            if (uIdx > -1) {
-                newState.data.users[uIdx] = transitionUserState(newState.data.users[uIdx], action.payload.transition);
-            }
+            if (uIdx > -1) newState.data.users[uIdx] = transitionUserState(newState.data.users[uIdx], action.payload.transition);
             break;
         }
 
@@ -227,11 +322,8 @@ export function dispatchAction(action) {
                 const type = action.payload.isDamaged ? "RETURN_DAMAGED" : "RETURN_OK";
                 newState.data.loans[lIdx] = transitionLoanState(loan, type);
                 newState.data.loans[lIdx].returnDate = today();
-                
                 const itemIdx = newState.data.items.findIndex(i => i.id === loan.itemId);
                 if (itemIdx > -1) newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], type);
-                
-                // Business pravidlo: poškozené vrácení → zákazník dostane SUSPENDED
                 if (action.payload.isDamaged) {
                     const uIdx = newState.data.users.findIndex(u => u.id === loan.userId);
                     if (uIdx > -1) newState.data.users[uIdx] = transitionUserState(newState.data.users[uIdx], "SUSPEND");
@@ -240,12 +332,9 @@ export function dispatchAction(action) {
             break;
         }
 
-        // Zákazník nahlásí ztrátu nebo odcizení svého zapůjčeného předmětu.
         case "REPORT_LOSS": {
             const lIdx = newState.data.loans.findIndex(l => l.id === action.payload.loanId);
-            if (lIdx > -1) {
-                newState.data.loans[lIdx] = transitionLoanState(newState.data.loans[lIdx], "NOT_RETURNED");
-            }
+            if (lIdx > -1) newState.data.loans[lIdx] = transitionLoanState(newState.data.loans[lIdx], "NOT_RETURNED");
             break;
         }
 
@@ -255,34 +344,27 @@ export function dispatchAction(action) {
             break;
         }
 
-        // Systémová kontrola spouštěná při startu aplikace.
-        // Projde všechny záznamy a provede časově podmíněné přechody stavů:
-        //   - Výpůjčky po termínu (ACTIVE + dueDate < dnes) → OVERDUE
-        //   - Rezervace po termínu vyzvednutí (CONFIRMED + requestedTo < dnes) → EXPIRED + předmět AVAILABLE
-        // Nahrazuje chybějící backend scheduler — jde o best-effort aproximaci.
+        // Systémová kontrola při startu aplikace (náhrada za backend scheduler).
+        // ACTIVE výpůjčky po termínu → OVERDUE
+        // CONFIRMED/PENDING rezervace po termínu → EXPIRED + předmět AVAILABLE
         case "SYSTEM_CHECK": {
             const nowDate = today();
-
             newState.data.loans.forEach((loan, i) => {
                 if (loan.status === "ACTIVE" && loan.dueDate && loan.dueDate < nowDate) {
                     newState.data.loans[i] = transitionLoanState(loan, "MARK_OVERDUE");
                 }
             });
-
             newState.data.reservations.forEach((res, i) => {
-                if ((res.status === "CONFIRMED" || res.status === "PENDING")
-                        && res.requestedTo && res.requestedTo < nowDate) {
+                if ((res.status === "CONFIRMED" || res.status === "PENDING") && res.requestedTo && res.requestedTo < nowDate) {
                     newState.data.reservations[i] = transitionReservationState(res, "EXPIRE");
                     const itemIdx = newState.data.items.findIndex(it => it.id === res.itemId);
-                    if (itemIdx > -1) {
-                        newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], "CANCEL_RESERVE");
-                    }
+                    if (itemIdx > -1) newState.data.items[itemIdx] = transitionItemState(newState.data.items[itemIdx], "CANCEL_RESERVE");
                 }
             });
             break;
         }
     }
-    
+
     setState(newState);
-    listeners.forEach(fn => fn());
+    listeners.forEach(fn => fn(appState));
 }
