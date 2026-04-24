@@ -56,9 +56,6 @@ function createStore() {
 
 // hlavni dispatch funkce - uz jen deleguje na spravnou akci
 export function dispatchAction(action) {
-    const handler = actionMap[action.type];
-    if (!handler) return;
-
     // clear notification akce (jedina inline - je trivialni)
     if (action.type === "CLEAR_NOTIFICATION") {
         const newState = JSON.parse(JSON.stringify(appState));
@@ -67,6 +64,9 @@ export function dispatchAction(action) {
         listeners.forEach(fn => fn(appState));
         return;
     }
+
+    const handler = actionMap[action.type];
+    if (!handler) return;
 
     const store = createStore();
     const api = createApi(appState.data);

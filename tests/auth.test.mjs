@@ -8,7 +8,7 @@ console.log("\n── register ──");
 {
     const db = { users: [] };
     const result = await createAuthApi(db).register({
-        email:    "novak@test.cz",
+        email: "novak@test.cz",
         password: "heslo123",
     });
     assert(result.status === "SUCCESS", "register – úspěšná registrace zákazníka");
@@ -37,7 +37,7 @@ console.log("\n── register ──");
 {
     const db = { users: [] };
     const result = await createAuthApi(db).register({
-        email:    "neplatnyemail",
+        email: "neplatnyemail",
         password: "heslo123",
     });
     assert(result.status === "REJECTED", "register – neplatný email → REJECTED");
@@ -47,7 +47,7 @@ console.log("\n── register ──");
 {
     const db = { users: [] };
     const result = await createAuthApi(db).register({
-        email:    "novak@test.cz",
+        email: "novak@test.cz",
         password: "ab",
     });
     assert(result.status === "REJECTED", "register – krátké heslo (< 4 znaky) → REJECTED");
