@@ -67,6 +67,13 @@ export function setState(newState) {
     persistData(appState.data);
 }
 
+export function resetState() {
+    if (confirm("Opravdu chcete smazat všechna data a resetovat aplikaci do výchozího stavu?")) {
+        localStorage.removeItem(APP_DATA_STORAGE_KEY);
+        location.reload();
+    }
+}
+
 // --- STAVOVÉ AUTOMATY (Business Pravidla) ---
 
 // Odpovědnost: Martin Teplý (IR01)

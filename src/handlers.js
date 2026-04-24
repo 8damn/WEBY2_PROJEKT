@@ -1,6 +1,7 @@
 // src/handlers.js
 // Odpovědnost: Max Jasinek (IR07 – Handlery a vazba UI → akce)
 import { dispatchAction } from './dispatch.js';
+import { resetState } from './state.js';
 
 // --- HANDLERY AUTENTIZACE (IR08, Adam Diblík) ---
 
@@ -57,3 +58,5 @@ export const onFix             = (id)              => dispatchAction({ type: "MA
 export const onRetire          = (id)              => dispatchAction({ type: "MANAGE_ITEM",          payload: { id, task: "RETIRE" } });
 export const onExpireReservation = (resId)         => dispatchAction({ type: "EXPIRE_RESERVATION",   payload: resId });
 export const onManageUser      = (userId, transition) => dispatchAction({ type: "MANAGE_USER",       payload: { userId, transition } });
+
+export const onResetApp        = () => resetState();

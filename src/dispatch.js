@@ -158,15 +158,14 @@ export function dispatchAction(action) {
         }
 
         case "LOGOUT": {
+            if (newState.auth.currentUser) {
+                const uIdx = newState.data.users.findIndex(u => u.id === newState.auth.currentUser.id);
+                if (uIdx > -1) newState.data.users[uIdx].token = null;
+            }
             const token = getAuthToken();
             const authApi = createAuthApi({ users: newState.data.users });
-            authApi.logout(token).then(result => {
-                if (result.status === "SUCCESS") {
-                    // Zrušíme token v datech uživatele
-                    const uIdx = newState.data.users.findIndex(u => u.id === result.userId);
-                    // (tento newState je stale – proto znovu dispatchujeme LOGOUT_SUCCESS)
-                }
-            });
+            authApi.logout(token);
+
             // Odhlásíme okamžitě na UI straně bez čekání na odpověď API
             newState.auth.currentUser = null;
             newState.auth.role = "GUEST";

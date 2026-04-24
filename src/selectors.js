@@ -19,9 +19,6 @@ export function getUserLoans(state) {
     );
 }
 
-export function isLoggedIn(state) {
-    return state.auth.currentUser !== null;
-}
 
 // --- SELEKTORY PRO ADMINISTRÁTORA ---
 

@@ -5,6 +5,10 @@ import { dispatchAction } from './dispatch.js';
 import { getAvailableItems, getUserReservations, getUserLoans, isAdmin, getActiveLoans, getAllUsers } from './selectors.js';
 import * as hnd from './handlers.js';
 
+function today() {
+    return new Date().toISOString().split("T")[0];
+}
+
 // -------------------------------------------------------
 // Pomocná funkce pro tvorbu DOM prvků (žádné innerHTML)
 // -------------------------------------------------------
@@ -100,7 +104,6 @@ function AuthenticationView({ isLoggedIn, capabilities, handlers }) {
     if (appState.ui.error) {
         const err = document.createElement("p");
         err.className = "error-message";
-        err.style.cssText = "color:#c62828;background:#ffebee;padding:8px 12px;border-radius:4px;margin:8px 0;";
         err.textContent = appState.ui.error;
         container.appendChild(err);
     }
@@ -186,9 +189,9 @@ function selectAuthenticationView(state) {
     return {
         isLoggedIn,
         capabilities: {
-            canLogin:    !isLoggedIn,
+            canLogin: !isLoggedIn,
             canRegister: !isLoggedIn,
-            canLogout:   isLoggedIn,
+            canLogout: isLoggedIn,
         },
     };
 }
@@ -198,11 +201,11 @@ function selectAuthenticationView(state) {
 // -------------------------------------------------------
 // Lidsky čitelné popisky stavů předmětů
 const ITEM_STATUS_LABEL = {
-    AVAILABLE:   'Dostupný',
-    RESERVED:    'Rezervován (čeká na schválení)',
+    AVAILABLE: 'Dostupný',
+    RESERVED: 'Rezervován (čeká na schválení)',
     UNAVAILABLE: 'Momentálně půjčen',
-    IN_REPAIR:   'V opravě',
-    RETIRED:     'Vyřazen',
+    IN_REPAIR: 'V opravě',
+    RETIRED: 'Vyřazen',
 };
 
 function renderCustomer() {
@@ -211,11 +214,11 @@ function renderCustomer() {
     const unavailableItems = appState.data.items.filter(i =>
         i.status === 'RESERVED' || i.status === 'UNAVAILABLE' || i.status === 'IN_REPAIR'
     );
-    const res   = getUserReservations(appState);
+    const res = getUserReservations(appState);
     const loans = getUserLoans(appState);
 
     const errorEl = appState.ui.error
-        ? h('p', { style: 'color:#c62828;background:#ffebee;padding:8px 12px;border-radius:4px;margin:8px 0;' }, appState.ui.error)
+        ? h('p', { class: 'error-message' }, appState.ui.error)
         : null;
     const loaderEl = appState.ui.loading ? h('progress', null) : null;
 
@@ -228,12 +231,12 @@ function renderCustomer() {
             : h('div', { class: 'grid' }, ...availableItems.map(i =>
                 h('div', { class: 'card' },
                     h('strong', null, i.name),
-                    h('small', { style: 'color:#2e7d32;' }, '✓ ' + (ITEM_STATUS_LABEL[i.status] || i.status)),
+                    h('small', { class: 'status-available' }, '✓ ' + (ITEM_STATUS_LABEL[i.status] || i.status)),
                     h('div', { class: 'date-group' },
                         h('label', { for: 'from-' + i.id }, 'Od'),
-                        h('input', { id: 'from-' + i.id, type: 'date' }),
+                        h('input', { id: 'from-' + i.id, type: 'date', min: today() }),
                         h('label', { for: 'to-' + i.id }, 'Do'),
-                        h('input', { id: 'to-' + i.id, type: 'date' })
+                        h('input', { id: 'to-' + i.id, type: 'date', min: today() })
                     ),
                     h('button', { class: 'outline btn-reserve', onClick: () => hnd.onReserve(i.id) }, 'Rezervovat')
                 )
@@ -243,12 +246,12 @@ function renderCustomer() {
             ? h('div', null,
                 h('h4', null, 'Momentálně nedostupné předměty'),
                 h('div', { class: 'grid' }, ...unavailableItems.map(i =>
-                    h('div', { class: 'card', style: 'opacity:0.55;' },
+                    h('div', { class: 'card disabled-card' },
                         h('strong', null, i.name),
-                        h('small', { style: 'color:#888;' }, '✗ ' + (ITEM_STATUS_LABEL[i.status] || i.status))
+                        h('small', { class: 'status-muted' }, '✗ ' + (ITEM_STATUS_LABEL[i.status] || i.status))
                     )
                 ))
-              )
+            )
             : null,
 
         h('hr', null),
@@ -262,14 +265,14 @@ function renderCustomer() {
                     itemName + ' (Stav: ' + r.status + ') | Termín: ' + (r.requestedFrom || '-') + ' až ' + (r.requestedTo || '-') + ' ',
                     (r.status === 'PENDING' || r.status === 'CONFIRMED')
                         ? h('div', { class: 'term-edit-group' },
-                            h('input', { id: 'edit-from-' + r.id, type: 'date', value: r.requestedFrom || '' }),
-                            h('input', { id: 'edit-to-' + r.id, type: 'date', value: r.requestedTo || '', class: 'input-date-gap' }),
+                            h('input', { id: 'edit-from-' + r.id, type: 'date', value: r.requestedFrom || '', min: today() }),
+                            h('input', { id: 'edit-to-' + r.id, type: 'date', value: r.requestedTo || '', class: 'input-date-gap', min: today() }),
                             h('button', { class: 'btn-action', onClick: () => hnd.onChangeReservationTerm(r.id) }, 'Změnit termín'),
                             h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Zrušit')
-                          )
+                        )
                         : null
                 );
-              })),
+            })),
         h('hr', null),
 
         h('h4', null, 'Mé výpůjčky'),
@@ -281,21 +284,13 @@ function renderCustomer() {
                     itemName + ' (Stav: ' + l.status + ') | Vrátit do: ' + (l.dueDate || 'neurčeno') + ' ',
                     h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onReportLoss(l.id) }, 'Nahlásit ztrátu / odcizení')
                 );
-              }))
+            }))
     );
 }
 
 // -------------------------------------------------------
 // Administrátorský pohled
 // -------------------------------------------------------
-// Barevné odznaky stavů pro admin panel
-const ITEM_STATUS_COLOR = {
-    AVAILABLE:   '#2e7d32',
-    RESERVED:    '#e65100',
-    UNAVAILABLE: '#1565c0',
-    IN_REPAIR:   '#6a1b9a',
-    RETIRED:     '#555',
-};
 
 function renderAdmin() {
     const pendingUsers = appState.data.users.filter(u => u.status === 'REGISTERED');
@@ -320,13 +315,13 @@ function renderAdmin() {
                 ? h('p', null, 'Žádné čekající rezervace.')
                 : h('ul', null, ...appState.data.reservations.filter(r => r.status === 'PENDING').map(r => {
                     const uEmail = (appState.data.users.find(u => u.id === r.userId) || {}).email || r.userId;
-                    const iName  = (appState.data.items.find(i => i.id === r.itemId) || {}).name  || r.itemId;
+                    const iName = (appState.data.items.find(i => i.id === r.itemId) || {}).name || r.itemId;
                     return h('li', null,
                         uEmail + ' → ' + iName + ' | Termín: ' + (r.requestedFrom || '-') + ' až ' + (r.requestedTo || '-') + ' ',
                         h('button', { class: 'btn-action', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'),
                         h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
                     );
-                  }))
+                }))
         ),
 
         h('section', { class: 'card' },
@@ -335,13 +330,13 @@ function renderAdmin() {
                 ? h('p', null, 'Žádné rezervace k vydání.')
                 : h('ul', null, ...appState.data.reservations.filter(r => r.status === 'CONFIRMED').map(r => {
                     const uEmail = (appState.data.users.find(u => u.id === r.userId) || {}).email || r.userId;
-                    const iName  = (appState.data.items.find(i => i.id === r.itemId) || {}).name  || r.itemId;
+                    const iName = (appState.data.items.find(i => i.id === r.itemId) || {}).name || r.itemId;
                     return h('li', null,
                         iName + ' pro ' + uEmail + ' | Vrátit do: ' + (r.requestedTo || '-') + ' ',
                         h('button', { class: 'btn-action', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'),
                         h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
                     );
-                  }))
+                }))
         ),
 
         h('section', { class: 'card' },
@@ -355,7 +350,7 @@ function renderAdmin() {
                     )),
                     h('tbody', null, ...getActiveLoans(appState).map(l => {
                         const uEmail = (appState.data.users.find(u => u.id === l.userId) || {}).email || l.userId;
-                        const iName  = (appState.data.items.find(i => i.id === l.itemId) || {}).name  || l.itemId;
+                        const iName = (appState.data.items.find(i => i.id === l.itemId) || {}).name || l.itemId;
                         return h('tr', null,
                             h('td', null, iName),
                             h('td', null, uEmail),
@@ -381,7 +376,7 @@ function renderAdmin() {
                     .map(i => h('tr', null,
                         h('td', null, i.name),
                         h('td', null,
-                            h('span', { style: 'color:' + (ITEM_STATUS_COLOR[i.status] || '#333') + ';font-weight:bold;' },
+                            h('span', { class: 'status-badge status-' + i.status.toLowerCase() },
                                 ITEM_STATUS_LABEL[i.status] || i.status
                             )
                         ),
@@ -412,6 +407,12 @@ function renderAdmin() {
                         : null
                 )
             ))
+        ),
+
+        h('section', { class: 'card system-tools-card' },
+            h('h4', { class: 'system-tools-title' }, '6. Systémové nástroje'),
+            h('p', null, 'Následující akce vymaže všechna uložená data v prohlížeči a vrátí aplikaci do továrního nastavení.'),
+            h('button', { class: 'secondary btn-danger', onClick: hnd.onResetApp }, 'Resetovat aplikaci (Smazat všechna data)')
         )
     );
 }
@@ -426,8 +427,8 @@ export function renderApp() {
     if (!appState.auth.currentUser) {
         // Sestavíme viewState a handlers pro AuthenticationView (vzor učitelky)
         const viewState = selectAuthenticationView(appState);
-        const handlers  = { onLogin: hnd.onLogin, onRegister: hnd.onRegister, onLogout: hnd.onLogout };
-        const authView  = AuthenticationView({ ...viewState, handlers });
+        const handlers = { onLogin: hnd.onLogin, onRegister: hnd.onRegister, onLogout: hnd.onLogout };
+        const authView = AuthenticationView({ ...viewState, handlers });
 
         const article = document.createElement("article");
         article.appendChild(authView);

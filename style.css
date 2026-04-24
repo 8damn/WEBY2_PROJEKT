@@ -20,3 +20,15 @@
     border-radius: 8px; 
     background-color: var(--card-background-color);
 }
+
+.status-available { color: #2e7d32; }
+.status-reserved { color: #e65100; }
+.status-unavailable { color: #1565c0; }
+.status-in_repair { color: #6a1b9a; }
+.status-retired { color: #555; }
+.status-badge { font-weight: bold; }
+.status-muted { color: #888; }
+.disabled-card { opacity: 0.55; }
+.system-tools-card { border: 1px solid #c62828; margin-top: 2rem; }
+.system-tools-title { color: #c62828; }
+.btn-danger { background-color: #c62828; border-color: #c62828; color: white; }
