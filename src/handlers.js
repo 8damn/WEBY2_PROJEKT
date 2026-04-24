@@ -54,5 +54,6 @@ export const onConfirmRes      = (id)              => dispatchAction({ type: "CO
 export const onFulfillRes      = (res)             => dispatchAction({ type: "FULFILL_RESERVATION",  payload: res });
 export const onReturn          = (loanId, isDamaged) => dispatchAction({ type: "RETURN_ITEM",        payload: { loanId, isDamaged } });
 export const onFix             = (id)              => dispatchAction({ type: "MANAGE_ITEM",          payload: { id, task: "FIX" } });
+export const onRetire          = (id)              => dispatchAction({ type: "MANAGE_ITEM",          payload: { id, task: "RETIRE" } });
 export const onExpireReservation = (resId)         => dispatchAction({ type: "EXPIRE_RESERVATION",   payload: resId });
 export const onManageUser      = (userId, transition) => dispatchAction({ type: "MANAGE_USER",       payload: { userId, transition } });

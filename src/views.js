@@ -316,46 +316,58 @@ function renderAdmin() {
 
         h('section', { class: 'card' },
             h('h4', null, '1. Nové rezervace (Ke schválení)'),
-            h('ul', null, ...appState.data.reservations.filter(r => r.status === 'PENDING').map(r =>
-                h('li', null,
-                    'Zákazník ' + r.userId + ' chce předmět ' + r.itemId + ' | Termín: ' + (r.requestedFrom || '-') + ' až ' + (r.requestedTo || '-') + ' ',
-                    h('button', { class: 'btn-action', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'),
-                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
-                )
-            ))
+            appState.data.reservations.filter(r => r.status === 'PENDING').length === 0
+                ? h('p', null, 'Žádné čekající rezervace.')
+                : h('ul', null, ...appState.data.reservations.filter(r => r.status === 'PENDING').map(r => {
+                    const uEmail = (appState.data.users.find(u => u.id === r.userId) || {}).email || r.userId;
+                    const iName  = (appState.data.items.find(i => i.id === r.itemId) || {}).name  || r.itemId;
+                    return h('li', null,
+                        uEmail + ' → ' + iName + ' | Termín: ' + (r.requestedFrom || '-') + ' až ' + (r.requestedTo || '-') + ' ',
+                        h('button', { class: 'btn-action', onClick: () => hnd.onConfirmRes(r.id) }, 'Potvrdit'),
+                        h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
+                    );
+                  }))
         ),
 
         h('section', { class: 'card' },
             h('h4', null, '2. K vydání zákazníkovi (Potvrzené)'),
-            h('ul', null, ...appState.data.reservations.filter(r => r.status === 'CONFIRMED').map(r =>
-                h('li', null,
-                    'Předmět ' + r.itemId + ' pro ' + r.userId + ' | Vrátit do: ' + (r.requestedTo || '-') + ' ',
-                    h('button', { class: 'btn-action', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'),
-                    h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
-                )
-            ))
+            appState.data.reservations.filter(r => r.status === 'CONFIRMED').length === 0
+                ? h('p', null, 'Žádné rezervace k vydání.')
+                : h('ul', null, ...appState.data.reservations.filter(r => r.status === 'CONFIRMED').map(r => {
+                    const uEmail = (appState.data.users.find(u => u.id === r.userId) || {}).email || r.userId;
+                    const iName  = (appState.data.items.find(i => i.id === r.itemId) || {}).name  || r.itemId;
+                    return h('li', null,
+                        iName + ' pro ' + uEmail + ' | Vrátit do: ' + (r.requestedTo || '-') + ' ',
+                        h('button', { class: 'btn-action', onClick: () => hnd.onFulfillRes(r) }, 'Vydat (Zahájit výpůjčku)'),
+                        h('button', { class: 'secondary outline btn-action-alt', onClick: () => hnd.onCancelRes(r.id, r.itemId) }, 'Odmítnout')
+                    );
+                  }))
         ),
 
         h('section', { class: 'card' },
             h('h4', null, '3. Aktivní výpůjčky (K vrácení)'),
-            h('table', { role: 'grid' },
-                h('thead', null, h('tr', null,
-                    h('th', null, 'Předmět'), h('th', null, 'Zákazník'),
-                    h('th', null, 'Vrátit do'), h('th', null, 'Stav'), h('th', null, 'Akce')
-                )),
-                h('tbody', null, ...getActiveLoans(appState).map(l =>
-                    h('tr', null,
-                        h('td', null, l.itemId),
-                        h('td', null, l.userId),
-                        h('td', null, l.dueDate || 'neurčeno'),
-                        h('td', null, l.status),
-                        h('td', null,
-                            h('button', { class: 'btn-compact', onClick: () => hnd.onReturn(l.id, false) }, 'Vrátit v pořádku'),
-                            h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onReturn(l.id, true) }, 'Vrátit poškozené')
-                        )
-                    )
-                ))
-            )
+            getActiveLoans(appState).length === 0
+                ? h('p', null, 'Žádné aktivní výpůjčky.')
+                : h('table', { role: 'grid' },
+                    h('thead', null, h('tr', null,
+                        h('th', null, 'Předmět'), h('th', null, 'Zákazník'),
+                        h('th', null, 'Vrátit do'), h('th', null, 'Stav'), h('th', null, 'Akce')
+                    )),
+                    h('tbody', null, ...getActiveLoans(appState).map(l => {
+                        const uEmail = (appState.data.users.find(u => u.id === l.userId) || {}).email || l.userId;
+                        const iName  = (appState.data.items.find(i => i.id === l.itemId) || {}).name  || l.itemId;
+                        return h('tr', null,
+                            h('td', null, iName),
+                            h('td', null, uEmail),
+                            h('td', null, l.dueDate || 'neurčeno'),
+                            h('td', null, l.status),
+                            h('td', null,
+                                h('button', { class: 'btn-compact', onClick: () => hnd.onReturn(l.id, false) }, 'Vrátit v pořádku'),
+                                h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onReturn(l.id, true) }, 'Vrátit poškozené')
+                            )
+                        );
+                    }))
+                )
         ),
 
         h('section', { class: 'card' },
@@ -364,8 +376,9 @@ function renderAdmin() {
                 h('thead', null, h('tr', null,
                     h('th', null, 'Název'), h('th', null, 'Stav'), h('th', null, 'Akce')
                 )),
-                h('tbody', null, ...appState.data.items.map(i =>
-                    h('tr', null,
+                h('tbody', null, ...appState.data.items
+                    .filter(i => i.status !== 'RETIRED')
+                    .map(i => h('tr', null,
                         h('td', null, i.name),
                         h('td', null,
                             h('span', { style: 'color:' + (ITEM_STATUS_COLOR[i.status] || '#333') + ';font-weight:bold;' },
@@ -375,10 +388,14 @@ function renderAdmin() {
                         h('td', null,
                             i.status === 'IN_REPAIR'
                                 ? h('button', { class: 'btn-action', onClick: () => hnd.onFix(i.id) }, 'Opraveno')
+                                : null,
+                            // Vyřadit lze z AVAILABLE, RESERVED nebo IN_REPAIR – dle stavového automatu (* → RETIRED)
+                            i.status !== 'UNAVAILABLE'
+                                ? h('button', { class: 'secondary btn-action-alt', onClick: () => hnd.onRetire(i.id) }, 'Vyřadit')
                                 : null
                         )
-                    )
-                ))
+                    ))
+                )
             )
         ),
 
@@ -420,14 +437,9 @@ export function renderApp() {
             h('ul', null, h('li', null, h('strong', null, 'Přihlášen: ' + appState.auth.currentUser.email))),
             h('ul', null, h('li', null, h('button', { onClick: hnd.onLogout, class: 'secondary outline' }, 'Odhlásit')))
         );
-        const errorMsg = appState.ui.error
-            ? h('article', { class: 'error-message' }, appState.ui.error) : null;
-        const loader = appState.ui.loading ? h('progress', null) : null;
-
+        // Chyba a loader jsou renderovány uvnitř každého pohledu zvlášť – zde je NEOPAKUJEME.
         root.appendChild(h('div', null,
             header,
-            errorMsg,
-            loader,
             isAdmin(appState) ? renderAdmin() : renderCustomer()
         ));
     }
