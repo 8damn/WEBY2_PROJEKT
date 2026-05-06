@@ -10,7 +10,7 @@ function today() {
     return new Date().toISOString().split("T")[0];
 }
 
-// pomocna fce abychom nemuseli vsude psat document.createElement (zakazano innerHTML)
+// pomocna fce abychom nemuseli vsude psat document.createElement
 function h(tag, props, ...children) {
     const el = document.createElement(tag);
     if (props) {

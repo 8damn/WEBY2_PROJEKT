@@ -30,21 +30,3 @@ export function clearAuthToken() {
 export function getAuthToken() {
     return sessionStorage.getItem(TOKEN_KEY);
 }
-
-export function restoreUserFromToken(users) {
-    const token = getAuthToken();
-    if (!token) return null;
-
-    const user = users.find(u => u.token === token);
-
-    if (!user) {
-        clearAuthToken();
-        return null;
-    }
-    if (user.status === "BLOCKED" || user.status === "REGISTERED") {
-        clearAuthToken();
-        return null;
-    }
-
-    return user;
-}

@@ -106,7 +106,7 @@ export function createApi(db) {
             return { status: "SUCCESS", user: { id: user.id, email: user.email, role: user.role, status: user.status, token: user.token } };
         },
 
-        // vytvoreni rezervace - vsechna business pravidla jsou tady
+        // vytvoreni rezervace
         async reserveItem({ token, itemId, from, to }) {
             await delay();
             const user = authenticateToken(db, token);
